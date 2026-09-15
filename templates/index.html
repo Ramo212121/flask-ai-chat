@@ -1,13 +1,18 @@
 {% extends "base.html" %}
 
-{% block title %}Sohbet — Flask AI Chat{% endblock %}
+{% block title %}Chat — Flask AI Chat{% endblock %}
 
 {% block content %}
 <div class="chat-container">
+    <div class="chat-header">
+        <span>💬 Chat</span>
+        <button type="button" id="clear-btn" class="clear-button">Clear</button>
+    </div>
+
     <div class="chat-messages" id="chat-messages">
         <div class="message ai-message">
             <div class="message-content">
-                Merhaba! 👋 Ben bir AI asistanıyım. Bir şey sor!
+                Hello! 👋 I'm an AI assistant. Ask me anything!
             </div>
         </div>
     </div>
@@ -17,10 +22,10 @@
             type="text" 
             id="chat-input" 
             class="chat-input" 
-            placeholder="Mesajını yaz..." 
+            placeholder="Type your message..." 
             autocomplete="off"
         >
-        <button type="submit" class="chat-button">Gönder</button>
+        <button type="submit" class="chat-button">Send</button>
     </form>
 </div>
 {% endblock %}
