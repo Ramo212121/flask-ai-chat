@@ -83,3 +83,30 @@
 ## Port Note
 On macOS, AirPlay uses port 5000, so Flask runs on 5001.
 URL: http://127.0.0.1:5001
+
+
+
+
+## Day 5 — Groq AI Integration
+
+### How I did it in Flask?
+- Got API key from Groq Console (free, no credit card)
+- Installed `groq` package
+- Initialized `Groq(api_key=...)` client
+- Called `chat.completions.create(messages=history, model="openai/gpt-oss-120b")`
+- Read reply with `choices[0].message.content`
+- Switched from Gemini due to 403 project denied error
+
+### Django equivalent?
+- Same SDK, same calls
+- Only the endpoint differs
+
+### Difference?
+- Groq uses OpenAI-compatible API format
+- Gemini used `google-genai` package (different API)
+- Groq is OpenAI-compatible → easier migration later
+
+### Models
+- `openai/gpt-oss-120b` — recommended, fast, 128K context
+- `openai/gpt-oss-20b` — lighter, faster
+- `llama-3.3-70b-versatile` — deprecated Aug 2026
