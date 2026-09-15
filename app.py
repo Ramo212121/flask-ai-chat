@@ -1,11 +1,17 @@
-from flask import Flask, render_template, request, jsonify
+import os
+from dotenv import load_dotenv
+from flask import Flask, render_template, request, jsonify, session
 
 app = Flask(__name__)
+
+load_dotenv()
+app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-key-change-me")
 
 @app.route("/")
 def index():
     return render_template("index.html")
 
+@app.route("/chat", methods=["POST"])
 @app.route("/chat", methods=["POST"])
 def chat():
     # 1. Get incoming data
@@ -19,11 +25,34 @@ def chat():
     if len(message) > 1000:
         return jsonify({"error": "Message cannot exceed 1000 characters"}), 400
     
-    # 3. Fake response for now (real AI comes on Day 5-6)
+    # 3. Get history from session (or start empty)
+    history = session.get("history", [])
+    
+    # 4. Add user message to history
+    history.append({"role": "user", "content": message})
+    
+    # 5. Fake AI response (real AI on Day 5-6)
     reply = f"You said: '{message}'. AI integration coming soon!"
     
-    # 4. Return as JSON
-    return jsonify({"reply": reply})
+    # 6. Add AI response to history
+    history.append({"role": "assistant", "content": reply})
+    
+    # 7. Save back to session
+    session["history"] = history
+    
+    # 8. Return JSON
+    return jsonify({"reply": reply, "history_length": len(history)})
+
+@app.route("/history", methods=["GET"])
+def get_history():
+    history = session.get("history", [])
+    return jsonify({"history": history})
+
+@app.route("/history", methods=["DELETE"])
+def clear_history():
+    session.pop("history", None)
+    return jsonify({"status": "cleared"})
+
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, port=5001)

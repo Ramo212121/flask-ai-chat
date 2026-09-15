@@ -4,6 +4,27 @@ document.addEventListener("DOMContentLoaded", () => {
     const messages = document.getElementById("chat-messages");
     const clearBtn = document.getElementById("clear-btn");
 
+    // Load history when page opens
+    async function loadHistory() {
+        try {
+            const response = await fetch("/history");
+            const data = await response.json();
+
+            if (data.history && data.history.length > 0) {
+                messages.innerHTML = "";
+                data.history.forEach(msg => {
+                    const sender = msg.role === "user" ? "user" : "ai";
+                    addMessage(msg.content, sender);
+                });
+            }
+        } catch (err) {
+            console.error("Failed to load history:", err);
+        }
+    }
+
+    loadHistory();
+
+    // Handle form submit
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
 
@@ -38,16 +59,23 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    clearBtn.addEventListener("click", () => {
-        messages.innerHTML = `
-            <div class="message ai-message">
-                <div class="message-content">
-                    Hello! 👋 I'm an AI assistant. Ask me anything!
+    // Handle clear button
+    clearBtn.addEventListener("click", async () => {
+        try {
+            await fetch("/history", { method: "DELETE" });
+            messages.innerHTML = `
+                <div class="message ai-message">
+                    <div class="message-content">
+                        Hello! 👋 I'm an AI assistant. Ask me anything!
+                    </div>
                 </div>
-            </div>
-        `;
+            `;
+        } catch (err) {
+            console.error("Failed to clear history:", err);
+        }
     });
 
+    // Add a message to the screen
     function addMessage(text, sender) {
         const div = document.createElement("div");
         div.className = `message ${sender}-message`;
@@ -56,6 +84,7 @@ document.addEventListener("DOMContentLoaded", () => {
         messages.scrollTop = messages.scrollHeight;
     }
 
+    // Escape HTML to prevent XSS
     function escapeHtml(text) {
         const div = document.createElement("div");
         div.textContent = text;
