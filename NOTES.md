@@ -80,14 +80,7 @@
 - Both require a secret key
 
 
-## Port Note
-On macOS, AirPlay uses port 5000, so Flask runs on 5001.
-URL: http://127.0.0.1:5001
-
-
-
-
-## Day 5 — Groq AI Integration
+## Day 5 — Groq AI Integration + UI Polish
 
 ### How I did it in Flask?
 - Got API key from Groq Console (free, no credit card)
@@ -95,7 +88,11 @@ URL: http://127.0.0.1:5001
 - Initialized `Groq(api_key=...)` client
 - Called `chat.completions.create(messages=history, model="openai/gpt-oss-120b")`
 - Read reply with `choices[0].message.content`
-- Switched from Gemini due to 403 project denied error
+- Switched from Gemini due to 403 project denied error (school account)
+- Added background video from Pexels
+- Added Google Fonts (Inter + Space Grotesk)
+- Added glassmorphism effect
+- Added custom logo (logo.png)
 
 ### Django equivalent?
 - Same SDK, same calls
@@ -103,10 +100,21 @@ URL: http://127.0.0.1:5001
 
 ### Difference?
 - Groq uses OpenAI-compatible API format
-- Gemini used `google-genai` package (different API)
+- Gemini used `google-genai` (different API)
 - Groq is OpenAI-compatible → easier migration later
 
 ### Models
 - `openai/gpt-oss-120b` — recommended, fast, 128K context
-- `openai/gpt-oss-20b` — lighter, faster
 - `llama-3.3-70b-versatile` — deprecated Aug 2026
+
+### System Prompt
+- A special message that defines the AI's identity and behavior
+- Always sent first in the messages array
+- NOT stored in session (re-sent every request)
+- Format: {"role": "system", "content": "You are..."}
+- Prevents AI from hallucinating its identity (e.g., claiming to be ChatGPT)
+
+
+## Port Note
+On macOS, AirPlay uses port 5000, so Flask runs on 5001.
+URL: http://127.0.0.1:5001
