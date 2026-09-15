@@ -1,12 +1,13 @@
 import os
 from dotenv import load_dotenv
 from flask import Flask, render_template, request, jsonify, session
+from google import genai
+
 
 app = Flask(__name__)
 
 load_dotenv()
-app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-key-change-me")
-
+gemini_client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -31,8 +32,14 @@ def chat():
     # 4. Add user message to history
     history.append({"role": "user", "content": message})
     
-    # 5. Fake AI response (real AI on Day 5-6)
-    reply = f"You said: '{message}'. AI integration coming soon!"
+try:
+    response = gemini_client.models.generate_content(
+        model="gemini-2.0-flash",
+        contents=message
+    )
+    reply = response.text
+except Exception as e:
+    return jsonify({"error": f"AI error: {str(e)}"}), 500
     
     # 6. Add AI response to history
     history.append({"role": "assistant", "content": reply})
