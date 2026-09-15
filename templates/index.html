@@ -1,20 +1,30 @@
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-    <meta charset="UTF-8">
-    <title>Flask AI Chat</title>
-    <style>
-        body {
-            font-family: system-ui, sans-serif;
-            max-width: 600px;
-            margin: 60px auto;
-            text-align: center;
-        }
-        h1 { color: #2c3e50; }
-    </style>
-</head>
-<body>
-    <h1>🚀 Hello Flask!</h1>
-    <p>AI Chat projesinin ilk adımı çalışıyor.</p>
-</body>
-</html>
+{% extends "base.html" %}
+
+{% block title %}Sohbet — Flask AI Chat{% endblock %}
+
+{% block content %}
+<div class="chat-container">
+    <div class="chat-messages" id="chat-messages">
+        <div class="message ai-message">
+            <div class="message-content">
+                Merhaba! 👋 Ben bir AI asistanıyım. Bir şey sor!
+            </div>
+        </div>
+    </div>
+
+    <form class="chat-form" id="chat-form">
+        <input 
+            type="text" 
+            id="chat-input" 
+            class="chat-input" 
+            placeholder="Mesajını yaz..." 
+            autocomplete="off"
+        >
+        <button type="submit" class="chat-button">Gönder</button>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+{% endblock %}
