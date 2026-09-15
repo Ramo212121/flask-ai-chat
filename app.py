@@ -29,23 +29,43 @@ def chat():
     if len(message) > 1000:
         return jsonify({"error": "Message cannot exceed 1000 characters"}), 400
 
+    system_prompt = {
+        "role": "system",
+        "content": (
+            "You are a friendly and helpful AI assistant in a Flask web application. "
+            "You are powered by an open-source language model running on Groq. "
+            "Your name is 'Flask AI Chat'. "
+            "Never claim to be ChatGPT, GPT-4, or any OpenAI product. "
+            "Keep answers concise and clear. "
+            "Always reply in the same language the user writes in."
+        )
+    }
+
     history = session.get("history", [])
     history.append({"role": "user", "content": message})
 
-    try:
-        chat_completion = groq_client.chat.completions.create(
-            messages=history,
-            model="openai/gpt-oss-120b",
-        )
-        reply = chat_completion.choices[0].message.content
-    except Exception as e:
-        return jsonify({"error": f"AI error: {str(e)}"}), 500
+    def generate():
+        full_reply = ""
+        try:
+            stream = groq_client.chat.completions.create(
+                messages=[system_prompt] + history,
+                model="openai/gpt-oss-120b",
+                stream=True,
+            )
+            for chunk in stream:
+                token = chunk.choices[0].delta.content or ""
+                if token:
+                    full_reply += token
+                    yield token
+        except Exception as e:
+            yield f"\n[Error: {str(e)}]"
+            return
 
-    history.append({"role": "assistant", "content": reply})
-    session["history"] = history
+        # Save to session after streaming completes
+        history.append({"role": "assistant", "content": full_reply})
+        session["history"] = history
 
-    return jsonify({"reply": reply, "history_length": len(history)})
-
+    return app.response_class(generate(), mimetype="text/plain")
 
 @app.route("/history", methods=["GET"])
 def get_history():

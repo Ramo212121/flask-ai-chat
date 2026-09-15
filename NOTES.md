@@ -118,3 +118,32 @@
 ## Port Note
 On macOS, AirPlay uses port 5000, so Flask runs on 5001.
 URL: http://127.0.0.1:5001
+
+
+## Day 6 — Streaming Responses
+
+### How I did it in Flask?
+- Used `stream=True` in Groq API call
+- Wrapped the call in a generator function with `yield`
+- Returned `app.response_class(generate(), mimetype="text/plain")`
+- Frontend reads with `response.body.getReader()`
+- Used `TextDecoder` to convert bytes to text
+- Appended each chunk with `textContent +=`
+
+### Django equivalent?
+- `StreamingHttpResponse(generate(), content_type="text/plain")`
+- Same generator pattern
+- Same frontend code
+
+### Difference?
+- Flask: `app.response_class()`
+- Django: `StreamingHttpResponse()`
+- Frontend is framework-agnostic
+
+### Why streaming matters?
+- User sees response immediately
+- No waiting for the full response
+- Better UX for long answers
+
+
+

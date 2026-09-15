@@ -35,6 +35,15 @@ document.addEventListener("DOMContentLoaded", () => {
         input.value = "";
         input.disabled = true;
 
+        // Create empty AI message bubble
+        const aiDiv = document.createElement("div");
+        aiDiv.className = "message ai-message";
+        const aiContent = document.createElement("div");
+        aiContent.className = "message-content";
+        aiDiv.appendChild(aiContent);
+        messages.appendChild(aiDiv);
+        messages.scrollTop = messages.scrollHeight;
+
         try {
             const response = await fetch("/chat", {
                 method: "POST",
@@ -44,15 +53,25 @@ document.addEventListener("DOMContentLoaded", () => {
                 body: JSON.stringify({ message: text })
             });
 
-            const data = await response.json();
+            if (!response.ok) {
+                const data = await response.json();
+                aiContent.textContent = `Error: ${data.error}`;
+                return;
+            }
 
-            if (response.ok) {
-                addMessage(data.reply, "ai");
-            } else {
-                addMessage(`Error: ${data.error}`, "ai");
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                const chunk = decoder.decode(value, { stream: true });
+                aiContent.textContent += chunk;
+                messages.scrollTop = messages.scrollHeight;
             }
         } catch (err) {
-            addMessage("Connection error. Try again.", "ai");
+            aiContent.textContent = "Connection error. Try again.";
         } finally {
             input.disabled = false;
             input.focus();
