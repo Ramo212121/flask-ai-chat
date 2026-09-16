@@ -78,7 +78,7 @@ body {
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     color: white;
-    padding: 0.75rem 2rem;
+    padding: 0.5rem 2rem;
     box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
     position: relative;
     z-index: 1;
@@ -184,10 +184,10 @@ body {
 /* Container */
 .container {
     flex: 1;
-    max-width: 900px;
+    max-width: 100%;
     width: 100%;
-    margin: 0 auto;
-    padding: 1.5rem;
+    margin: 0;
+    padding: 0.5rem 1rem;
     position: relative;
     z-index: 1;
 }
@@ -196,7 +196,7 @@ body {
 .app-layout {
     display: flex;
     gap: 1rem;
-    height: 72vh;
+    height: 85vh;
 }
 
 /* Chat container */
@@ -211,7 +211,7 @@ body {
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
     display: flex;
     flex-direction: column;
-    height: 72vh;
+    height: 85vh;
     overflow: hidden;
 }
 
@@ -956,7 +956,7 @@ body {
 }
 
 /* Mobile responsive */
-@media (max-width: 768px) {
+@media (max-width: 600px) {
     .header {
         padding: 0.75rem 1rem;
     }
@@ -971,11 +971,11 @@ body {
     }
 
     .container {
-        padding: 1rem;
+        padding: 0.5rem;
     }
 
     .app-layout {
-        height: 78vh;
+        height: 88vh;
     }
 
     .sidebar {
@@ -1021,6 +1021,12 @@ body {
     }
 }
 
+/* Desktop: hide menu toggle, sidebar always visible */
+@media (min-width: 601px) {
+    .menu-toggle {
+        display: none;
+    }
+}
 
 
 /* ===== Full message copy button ===== */
