@@ -10,6 +10,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 
+    <!-- Marked.js for Markdown rendering -->
+    <script src="{{ url_for('static', filename='js/marked.min.js') }}"></script>
+
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
@@ -18,12 +21,19 @@
         <source src="{{ url_for('static', filename='videos/background.mp4') }}" type="video/mp4">
     </video>
 
-    <header class="header">
+<header class="header">
+    <div class="header-left">
         <a href="/" class="logo">
-            <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Flask AI Chat Logo" class="logo-icon">
+            <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo" class="logo-icon">
             <span class="logo-text">Flask AI Chat</span>
         </a>
-    </header>
+    </div>
+    <div class="header-right">
+        <div class="user-menu" id="user-menu">
+            <span class="user-name">Guest</span>
+        </div>
+    </div>
+</header>
 
     <main class="container">
         {% block content %}{% endblock %}

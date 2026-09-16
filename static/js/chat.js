@@ -35,14 +35,22 @@ document.addEventListener("DOMContentLoaded", () => {
         input.value = "";
         input.disabled = true;
 
-        // Create empty AI message bubble
+        // Create empty AI message bubble with typing indicator
         const aiDiv = document.createElement("div");
         aiDiv.className = "message ai-message";
         const aiContent = document.createElement("div");
         aiContent.className = "message-content";
+        aiContent.innerHTML = `
+            <div class="typing-indicator">
+                <span></span><span></span><span></span>
+            </div>
+        `;
         aiDiv.appendChild(aiContent);
         messages.appendChild(aiDiv);
         messages.scrollTop = messages.scrollHeight;
+
+        // İlk token gelince typing indicator'ı temizle
+        let firstChunk = true;
 
         try {
             const response = await fetch("/chat", {
@@ -61,13 +69,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
+            let fullText = "";
 
             while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
 
                 const chunk = decoder.decode(value, { stream: true });
-                aiContent.textContent += chunk;
+                fullText += chunk;
+
+                // İlk token geldiğinde typing indicator'ı kaldır
+                if (firstChunk) {
+                    aiContent.innerHTML = "";
+                    firstChunk = false;
+                }
+
+                aiContent.innerHTML = marked.parse(fullText);
                 messages.scrollTop = messages.scrollHeight;
             }
         } catch (err) {
@@ -98,7 +115,26 @@ document.addEventListener("DOMContentLoaded", () => {
     function addMessage(text, sender) {
         const div = document.createElement("div");
         div.className = `message ${sender}-message`;
-        div.innerHTML = `<div class="message-content">${escapeHtml(text)}</div>`;
+
+        const content = document.createElement("div");
+        content.className = "message-content";
+
+        if (sender === "ai") {
+            content.innerHTML = marked.parse(text);
+        } else {
+            content.textContent = text;
+        }
+
+        // Timestamp
+        const timestamp = document.createElement("div");
+        timestamp.className = "message-timestamp";
+        timestamp.textContent = new Date().toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+
+        div.appendChild(content);
+        div.appendChild(timestamp);
         messages.appendChild(div);
         messages.scrollTop = messages.scrollHeight;
     }
@@ -108,5 +144,34 @@ document.addEventListener("DOMContentLoaded", () => {
         const div = document.createElement("div");
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    // Sidebar toggle for mobile
+    const menuToggle = document.getElementById("menu-toggle");
+    const sidebar = document.getElementById("sidebar");
+
+    if (menuToggle && sidebar) {
+        menuToggle.addEventListener("click", () => {
+            sidebar.classList.toggle("open");
+        });
+
+        // Sidebar dışına tıklayınca kapat
+        document.addEventListener("click", (e) => {
+            if (
+                sidebar.classList.contains("open") &&
+                !sidebar.contains(e.target) &&
+                !menuToggle.contains(e.target)
+            ) {
+                sidebar.classList.remove("open");
+            }
+        });
+    }
+
+    // New Chat button (placeholder — Gün 10'da çalışacak)
+    const newChatBtn = document.getElementById("new-chat-btn");
+    if (newChatBtn) {
+        newChatBtn.addEventListener("click", () => {
+            console.log("New chat — will be functional on Day 10");
+        });
     }
 });

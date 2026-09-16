@@ -256,3 +256,43 @@ Flask sessions are **cookie-based** (limited to ~4KB). Django's DB-backed sessio
 ## Port Note
 On macOS, AirPlay uses port 5000. Flask runs on 5001.
 URL: `http://127.0.0.1:5001`
+
+
+
+## Day 7 — UI/UX + Sidebar
+
+### What I built
+- Sidebar layout (visual only, no data yet)
+- New Chat button (placeholder)
+- Mobile responsive with drawer
+- Message timestamp
+- Typing indicator (3-dot animation)
+- Header split into left (logo) + right (user menu)
+
+### What I learned
+- Flexbox for two-column layout
+- CSS media queries for mobile (768px, 480px)
+- `position: fixed` + `transform` for drawer
+- JavaScript `Date` API for timestamps
+- CSS animations (`@keyframes`) for typing dots
+- Event delegation for click-outside
+
+### Django comparison
+| Flask | Django |
+|-------|--------|
+| Plain HTML/CSS | Same, but Django templates |
+| `{% extends %}` in templates | Same |
+| No form helpers | Django has `{{ form.as_p }}` |
+
+### Where I needed help
+- CSS flexbox layout
+- Responsive design breakpoints
+- CSS animations
+- Sidebar toggle logic
+- Missing CSS when `{% extends %}` was missing
+
+### Honest note
+UI is where projects stand out. Most tutorials skip this. I'm building it step by step.
+
+
+

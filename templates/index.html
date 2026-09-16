@@ -3,30 +3,45 @@
 {% block title %}Chat — Flask AI Chat{% endblock %}
 
 {% block content %}
-<div class="chat-container">
-    <div class="chat-header">
-        <span>💬 Chat</span>
-        <button type="button" id="clear-btn" class="clear-button">Clear</button>
-    </div>
+<div class="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <button class="new-chat-btn" id="new-chat-btn">
+            <span class="plus-icon">+</span>
+            <span>New Chat</span>
+        </button>
+        <div class="chat-list" id="chat-list">
+            <p class="empty-hint">No chats yet</p>
+        </div>
+    </aside>
 
-    <div class="chat-messages" id="chat-messages">
-        <div class="message ai-message">
-            <div class="message-content">
-                Hello! 👋 I'm an AI assistant. Ask me anything!
+    <!-- Ana chat alanı -->
+    <div class="chat-container">
+        <div class="chat-header">
+            <button class="menu-toggle" id="menu-toggle" aria-label="Menu">☰</button>
+            <span>💬 Chat</span>
+            <button type="button" id="clear-btn" class="clear-button">Clear</button>
+        </div>
+
+        <div class="chat-messages" id="chat-messages">
+            <div class="message ai-message">
+                <div class="message-content">
+                    Hello! 👋 I'm an AI assistant. Ask me anything!
+                </div>
             </div>
         </div>
-    </div>
 
-    <form class="chat-form" id="chat-form">
-        <input 
-            type="text" 
-            id="chat-input" 
-            class="chat-input" 
-            placeholder="Type your message..." 
-            autocomplete="off"
-        >
-        <button type="submit" class="chat-button">Send</button>
-    </form>
+        <form class="chat-form" id="chat-form">
+            <input 
+                type="text" 
+                id="chat-input" 
+                class="chat-input" 
+                placeholder="Type your message..." 
+                autocomplete="off"
+            >
+            <button type="submit" class="chat-button">Send</button>
+        </form>
+    </div>
 </div>
 {% endblock %}
 
