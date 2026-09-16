@@ -634,35 +634,37 @@ body {
 }
 
 .chat-list::-webkit-scrollbar {
-    width: 6px;
+    width: 4px;
 }
 
 .chat-list::-webkit-scrollbar-thumb {
     background: var(--scroll-thumb);
-    border-radius: 3px;
+    border-radius: 2px;
 }
 
 .empty-hint {
-    color: rgba(255, 255, 255, 0.5);
-    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 0.8rem;
     text-align: center;
-    padding: 1rem;
+    padding: 2rem 1rem;
     font-style: italic;
+    line-height: 1.5;
 }
 
 .chat-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.75rem 1rem;
+    padding: 0.5rem 0.75rem;
     background: var(--bg-glass);
-    border-radius: 10px;
+    border-radius: 8px;
     color: white;
     font-family: 'Inter', sans-serif;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     cursor: pointer;
     transition: all 0.2s;
     gap: 0.5rem;
+    min-height: 40px;
 }
 
 .chat-item:hover {
@@ -679,6 +681,9 @@ body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    max-width: 180px;
+    font-size: 0.85rem;
+    line-height: 1.2;
 }
 
 .delete-chat-btn {
@@ -716,10 +721,11 @@ body {
 
 /* Timestamp */
 .message-timestamp {
-    font-size: 0.7rem;
-    color: rgba(0, 0, 0, 0.4);
-    margin-top: 0.3rem;
+    font-size: 0.65rem;
+    color: rgba(0, 0, 0, 0.35);
+    margin-top: 0.25rem;
     text-align: right;
+    padding: 0 0.25rem;
 }
 
 .user-message .message-timestamp {

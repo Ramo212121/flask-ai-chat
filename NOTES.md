@@ -586,6 +586,7 @@ Realization: **This is a real-world AI problem.** Production apps have to handle
 
 ---
 
+
 ## Day 15 — Multi-Model Selection
 
 ### What I built
@@ -599,7 +600,7 @@ Realization: **This is a real-world AI problem.** Production apps have to handle
 ### What I learned
 - `<select>` element with `<option>` values
 - `change` event listener for dropdown
-- **Whitelist validation** (security — prevent arbitrary model)
+- Whitelist validation (security — prevent arbitrary model)
 - Sending user selection via JSON body
 - Conditional model switching (image → Llama 4)
 - `in` operator for list membership check
@@ -613,83 +614,22 @@ Realization: **This is a real-world AI problem.** Production apps have to handle
 | Same API calls | Same |
 
 ### Where I needed help
-- Whitelist validation pattern — why it matters
-- Conditional model switching (image forces vision model)
+- Whitelist validation pattern
+- Conditional model switching
 - Dropdown styling (dark theme)
 - Passing model through JSON
 
 ### Honest note
-**Multi-model support makes the app flexible.** Users can choose:
-- Fast model for quick answers (`gpt-oss-20b`)
-- Powerful model for complex questions (`gpt-oss-120b`)
-- Vision model for images (`llama-4-scout`)
+Multi-model support makes the app flexible. Users can choose fast model (gpt-oss-20b) or powerful model (gpt-oss-120b) or vision model (llama-4-scout).
 
-Vision model auto-switches — **user doesn't need to know.**
+**Security lesson:** Always whitelist allowed models. Never trust user input for API parameters.
 
-**Security lesson:** Always whitelist allowed models. Never trust user input for API parameters. A malicious user could send `model: "expensive-model"` and cost you money.
+### Impact
+- User has control over AI
+- Different models for different tasks
+- Auto-switch ensures images work
+- Project feels professional and flexible
 
-Lesson: **Never trust the client.** Validate everything on the backend.
-
----
-
-## Overall Reflections
-
-### What I learned about myself
-- I learn best by **building real things**, not watching tutorials
-- I need to **see the "why"**, not just the "how"
-- I debug better when I **read error messages carefully**
-- I progress fastest when I **compare to something I know** (Django)
-- I make **many mistakes** — indentation, env files, port conflicts — and that's normal
-
-### What I learned about AI APIs
-- **Framework-agnostic:** same SDK works in Flask and Django
-- **Always have a backup:** Gemini failed → Groq worked
-- **System prompts are essential:** define AI identity
-- **Model names change:** keep up with deprecations
-- **Multimodal format matters:** array of parts, not a string
-- **LLMs need edge-case instructions:** emoji → language detection
-
-### What I learned about Flask vs Django
-| Aspect | Flask | Django |
-|--------|-------|--------|
-| Setup | Minimal, explicit | Structured, opinionated |
-| Auth | Manual (build it) | Built-in |
-| Forms | Manual validation | Auto-validated |
-| Migrations | `create_all()` | `makemigrations` + `migrate` |
-| Admin | Build yourself | Built-in |
-| Learning curve | Easy start, hard end | Hard start, easy end |
-
-**My take:** Flask taught me **what Django does for me automatically.** Both are valid — the right choice depends on the project.
-
-### Honest admission
-- I used AI assistance (ChatGPT/Claude) heavily throughout this project
-- I did **not** memorize every line — I understood the logic
-- I made **many mistakes** (indentation, env files, port conflicts)
-- I searched documentation, Stack Overflow, and asked for help
-- **This is normal.** Real engineers do this every day.
-
-### What's next
-- Day 16+: Tool calling, PDF reading, voice, design polish
-- After this project: build something bigger
-- Long-term goal: strong GitHub portfolio by graduation
-
----
-
-## Technical Stack
-
-| Layer | Technology |
-|-------|------------|
-| Backend | Flask (Python) |
-| AI | Groq API (`openai/gpt-oss-120b`, Llama 4) |
-| Frontend | Vanilla JS + HTML + CSS |
-| Markdown | marked.js (local) |
-| Highlight | highlight.js (local) |
-| Fonts | Google Fonts (Inter, Space Grotesk) |
-| Media | Pexels (background video) |
-| Version control | Git + GitHub |
-
-
----
 
 ## Day 16 — Tool Calling (Time + Map)
 
@@ -699,7 +639,7 @@ Lesson: **Never trust the client.** Validate everything on the backend.
 - `show_map` tool — generates OpenStreetMap link
 - Tool execution function on backend
 - Two-call pattern: AI decides → executes → responds
-- Conditional tool use (skip for images/emoji)
+- Conditional tool use (skip for images/emoji/pdf)
 
 ### What I learned
 - Tool calling format: `tools=[{type: "function", function: {...}}]`
@@ -721,9 +661,8 @@ Lesson: **Never trust the client.** Validate everything on the backend.
 - Understanding the two-call pattern
 - `stream=False` for tool detection
 - Tool result format (`role: "tool"`, `tool_call_id`)
-- Avoiding tool calls for image/emoji messages
 - JSON parsing of `tool_call.function.arguments`
-- Fixing syntax errors (TOOLS must be at module level, not inside chat())
+- Fixing syntax errors (TOOLS must be at module level)
 
 ### Honest note
 Tool calling is powerful but complex. It's the difference between "AI that talks" and "AI that does things."
@@ -733,7 +672,7 @@ The two-call pattern was confusing:
 2. Execute
 3. Second call: "Here's the result, now respond"
 
-Why not one call? Because the AI needs to see the result before responding.
+**Why not one call?** Because the AI needs to see the result before responding.
 
 Real-world use: ChatGPT's "Browse with Bing", Claude's "web search", Cursor's "run terminal" — all use this exact pattern.
 
@@ -741,9 +680,7 @@ Real-world use: ChatGPT's "Browse with Bing", Claude's "web search", Cursor's "r
 - AI can access real-time information
 - AI can generate dynamic content (map links)
 - Project feels truly intelligent
-- Foundation for future tools (weather, stocks, etc.)
-
-
+- Foundation for future tools
 
 
 ## Day 17 — PDF Reading
@@ -799,7 +736,6 @@ I'm doing the simplest version: extract all text, truncate, send.
 - AI can summarize, answer questions about PDFs
 - Foundation for future RAG
 - Project feels more "professional"
-
 
 ## Port Note
 On macOS, AirPlay uses port 5000. Flask runs on 5001.
