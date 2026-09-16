@@ -18,9 +18,19 @@
     <!-- Ana chat alanı -->
     <div class="chat-container">
         <div class="chat-header">
-            <button class="menu-toggle" id="menu-toggle" aria-label="Menu">☰</button>
-            <span>💬 Chat</span>
-            <button type="button" id="clear-btn" class="clear-button">Clear</button>
+            <div class="chat-header-left">
+                <button class="menu-toggle" id="menu-toggle" aria-label="Menu">☰</button>
+                <span>💬 Chat</span>
+            </div>
+            <div class="chat-header-right">
+                <select class="model-select" id="model-select" title="Select model">
+                    <option value="openai/gpt-oss-120b">GPT-OSS 120B</option>
+                    <option value="openai/gpt-oss-20b">GPT-OSS 20B (fast)</option>
+                    <option value="meta-llama/llama-4-scout-17b-16e-instruct">Llama 4 Scout (vision)</option>
+                    <option value="meta-llama/llama-4-maverick-17b-128e-instruct">Llama 4 Maverick (vision)</option>
+                </select>
+                <button type="button" id="clear-btn" class="clear-button">Clear</button>
+            </div>
         </div>
 
         <div class="chat-messages" id="chat-messages">
@@ -31,24 +41,46 @@
             </div>
         </div>
 
-<form class="chat-form" id="chat-form">
-    <div class="image-preview" id="image-preview" style="display: none;">
-        <img id="preview-img" src="" alt="Preview">
-        <button type="button" class="remove-image-btn" id="remove-image-btn">×</button>
-    </div>
-    <div class="input-row">
-        <label for="image-input" class="attach-btn" title="Attach image">📎</label>
-        <input type="file" id="image-input" accept="image/*" style="display: none;">
-        <input 
-            type="text" 
-            id="chat-input" 
-            class="chat-input" 
-            placeholder="Type your message..." 
-            autocomplete="off"
-        >
-        <button type="submit" class="chat-button">Send</button>
-    </div>
-</form>
+        <form class="chat-form" id="chat-form">
+            <!-- Image preview -->
+            <div class="image-preview" id="image-preview" style="display: none;">
+                <img id="preview-img" src="" alt="Preview">
+                <button type="button" class="remove-image-btn" id="remove-image-btn">×</button>
+            </div>
+
+            <!-- PDF preview -->
+            <div class="pdf-preview" id="pdf-preview" style="display: none;">
+                <span class="pdf-icon">📄</span>
+                <span class="pdf-name" id="pdf-name">document.pdf</span>
+                <button type="button" class="remove-image-btn" id="remove-pdf-btn">×</button>
+            </div>
+
+            <div class="input-row">
+                <label for="image-input" class="attach-btn" title="Attach image">📎</label>
+                <input type="file" id="image-input" accept="image/*" style="display: none;">
+
+                <label for="pdf-input" class="attach-btn" title="Attach PDF">📄</label>
+                <input type="file" id="pdf-input" accept=".pdf" style="display: none;">
+
+                <button type="button" class="emoji-btn" id="emoji-btn" title="Emoji">😀</button>
+                <div class="emoji-picker" id="emoji-picker">
+                    <div class="emoji-picker-header">
+                        <span>Emojis</span>
+                        <button type="button" class="emoji-close" id="emoji-close">×</button>
+                    </div>
+                    <div class="emoji-grid" id="emoji-grid"></div>
+                </div>
+
+                <input 
+                    type="text" 
+                    id="chat-input" 
+                    class="chat-input" 
+                    placeholder="Type your message..." 
+                    autocomplete="off"
+                >
+                <button type="submit" class="chat-button">Send</button>
+            </div>
+        </form>
     </div>
 </div>
 {% endblock %}

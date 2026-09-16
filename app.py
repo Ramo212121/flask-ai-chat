@@ -1,11 +1,15 @@
 import os
+import io
+import json
 from pathlib import Path
 from functools import wraps
+from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from groq import Groq
+import pdfplumber
 
 ENV_PATH = Path(__file__).resolve().parent / ".env"
 load_dotenv(dotenv_path=ENV_PATH)
@@ -72,6 +76,71 @@ class Message(db.Model):
     role = db.Column(db.String(20), nullable=False)
     content = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+
+
+# ===== Tool Definitions =====
+
+TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "get_time",
+            "description": "Get the current local time for a given city. Use when the user asks about time in a location.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "city": {
+                        "type": "string",
+                        "description": "The city name, e.g., 'Istanbul', 'London', 'Tokyo'"
+                    }
+                },
+                "required": ["city"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "show_map",
+            "description": "Generate a map link for a location. Use when the user asks about a place, city, or directions.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "location": {
+                        "type": "string",
+                        "description": "The location name to show on a map"
+                    }
+                },
+                "required": ["location"]
+            }
+        }
+    }
+]
+
+
+def execute_tool(tool_name, arguments):
+    """Execute a tool and return its result as a string."""
+    if tool_name == "get_time":
+        city = arguments.get("city", "Unknown")
+        timezones = {
+            "istanbul": 3, "ankara": 3, "izmir": 3,
+            "london": 0, "paris": 1, "berlin": 1,
+            "moscow": 3, "dubai": 4, "tokyo": 9,
+            "new york": -5, "los angeles": -8,
+            "beijing": 8, "singapore": 8,
+        }
+        city_key = city.lower().strip()
+        offset = timezones.get(city_key, 0)
+        tz = timezone(timedelta(hours=offset))
+        now = datetime.now(tz)
+        return f"The current time in {city} is {now.strftime('%H:%M')} (UTC{offset:+d})."
+
+    elif tool_name == "show_map":
+        location = arguments.get("location", "")
+        encoded = location.replace(" ", "+")
+        return f"[📍 View {location} on map](https://www.openstreetmap.org/search?query={encoded})"
+
+    return f"Unknown tool: {tool_name}"
 
 
 # ===== Auth Routes =====
@@ -157,6 +226,38 @@ def me():
     }), 200
 
 
+# ===== PDF Upload Route =====
+
+@app.route("/upload-pdf", methods=["POST"])
+@login_required
+def upload_pdf():
+    if "pdf" not in request.files:
+        return jsonify({"error": "No PDF file"}), 400
+
+    file = request.files["pdf"]
+    if not file.filename.lower().endswith(".pdf"):
+        return jsonify({"error": "Only PDF files allowed"}), 400
+
+    try:
+        text = ""
+        with pdfplumber.open(io.BytesIO(file.read())) as pdf:
+            for page in pdf.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    text += page_text + "\n\n"
+
+        # Limit size
+        if len(text) > 20000:
+            text = text[:20000] + "\n\n[... text truncated ...]"
+
+        if not text.strip():
+            return jsonify({"error": "Could not extract text from PDF (maybe scanned image?)"}), 400
+
+        return jsonify({"text": text})
+    except Exception as e:
+        return jsonify({"error": f"PDF error: {str(e)}"}), 500
+
+
 # ===== Main Routes =====
 
 @app.route("/")
@@ -173,9 +274,11 @@ def chat():
     chat_id = data.get("chat_id")
     image_base64 = data.get("image")
     image_type = data.get("image_type")
+    only_emoji = data.get("only_emoji", False)
+    pdf_text = data.get("pdf_text", "").strip()
 
-    if not message and not image_base64:
-        return jsonify({"error": "Message or image required"}), 400
+    if not message and not image_base64 and not pdf_text:
+        return jsonify({"error": "Message, image, or PDF required"}), 400
 
     if len(message) > 1000:
         return jsonify({"error": "Message cannot exceed 1000 characters"}), 400
@@ -188,7 +291,12 @@ def chat():
         if chat.user_id != session["user_id"]:
             return jsonify({"error": "Forbidden"}), 403
     else:
-        title_source = message if message else "Image chat"
+        if message:
+            title_source = message
+        elif pdf_text:
+            title_source = "PDF chat"
+        else:
+            title_source = "Image chat"
         title = title_source[:50] + ("..." if len(title_source) > 50 else "")
         chat = Chat(title=title, user_id=session["user_id"])
         db.session.add(chat)
@@ -196,21 +304,49 @@ def chat():
         chat_id = chat.id
 
     # Save user message
-    user_content = message if message else "[Image]"
+    if message:
+        user_content = message
+    elif pdf_text:
+        user_content = "[PDF]"
+    else:
+        user_content = "[Image]"
+
     user_msg = Message(chat_id=chat_id, role="user", content=user_content)
     db.session.add(user_msg)
     db.session.commit()
 
-    # Build history from DB (skip image-only placeholders)
+    # Build history from DB (skip placeholders)
     history = [
         {"role": m.role, "content": m.content}
         for m in chat.messages
-        if not m.content.startswith("[Image]")
+        if not m.content.startswith("[Image]") and not m.content.startswith("[PDF]")
     ]
 
-    # Build API messages
-    if image_base64 and image_type:
-        # Multimodal message
+    # ===== MODEL SELECTION =====
+    requested_model = data.get("model", "openai/gpt-oss-120b")
+
+    ALLOWED_MODELS = [
+        "openai/gpt-oss-120b",
+        "openai/gpt-oss-20b",
+        "meta-llama/llama-4-scout-17b-16e-instruct",
+        "meta-llama/llama-4-maverick-17b-128e-instruct",
+    ]
+
+    if requested_model not in ALLOWED_MODELS:
+        requested_model = "openai/gpt-oss-120b"
+
+    # ===== BUILD USER MESSAGE =====
+    if pdf_text:
+        combined_message = (
+            f"Here is the content of a PDF document:\n\n{pdf_text}\n\n"
+            f"---\n\nUser question: {message if message else 'Please summarize this document.'}"
+        )
+        user_message = {"role": "user", "content": combined_message}
+
+    elif image_base64 and image_type:
+        if "llama-4" not in requested_model:
+            requested_model = "meta-llama/llama-4-scout-17b-16e-instruct"
+
         user_message = {
             "role": "user",
             "content": [
@@ -223,37 +359,80 @@ def chat():
                 }
             ]
         }
-        model = "meta-llama/llama-4-scout-17b-16e-instruct"
+
     else:
         user_message = {"role": "user", "content": message}
-        model = "openai/gpt-oss-120b"
 
-    # Replace the last user message with multimodal version
+    model = requested_model
+
+    # Replace the last user message with the new one
     api_messages = history[:-1] + [user_message] if history else [user_message]
 
+    # ===== SYSTEM PROMPT =====
     system_prompt = {
         "role": "system",
         "content": (
             "You are a friendly and helpful AI assistant in a Flask web application. "
             "Your name is 'Flask AI Chat'. "
             "Never claim to be ChatGPT, GPT-4, or any OpenAI product. "
-            "Always reply in the same language the user writes in."
+            "Always reply in the same language the user writes in. "
+            "If the user sends only emojis or non-text content, reply in English."
         )
     }
 
     def generate():
         full_reply = ""
         try:
-            stream = groq_client.chat.completions.create(
-                messages=[system_prompt] + api_messages,
-                model=model,
-                stream=True,
-            )
-            for chunk in stream:
-                token = chunk.choices[0].delta.content or ""
-                if token:
-                    full_reply += token
-                    yield token
+            use_tools = not image_base64 and not only_emoji and not pdf_text
+
+            if use_tools:
+                response = groq_client.chat.completions.create(
+                    messages=[system_prompt] + api_messages,
+                    model=model,
+                    tools=TOOLS,
+                    tool_choice="auto",
+                    stream=False,
+                )
+                msg = response.choices[0].message
+
+                if msg.tool_calls:
+                    api_messages.append(msg)
+
+                    for tool_call in msg.tool_calls:
+                        args = json.loads(tool_call.function.arguments)
+                        result = execute_tool(tool_call.function.name, args)
+
+                        api_messages.append({
+                            "role": "tool",
+                            "tool_call_id": tool_call.id,
+                            "content": result,
+                        })
+
+                    stream = groq_client.chat.completions.create(
+                        messages=[system_prompt] + api_messages,
+                        model=model,
+                        stream=True,
+                    )
+                    for chunk in stream:
+                        token = chunk.choices[0].delta.content or ""
+                        if token:
+                            full_reply += token
+                            yield token
+                else:
+                    if msg.content:
+                        full_reply = msg.content
+                        yield full_reply
+            else:
+                stream = groq_client.chat.completions.create(
+                    messages=[system_prompt] + api_messages,
+                    model=model,
+                    stream=True,
+                )
+                for chunk in stream:
+                    token = chunk.choices[0].delta.content or ""
+                    if token:
+                        full_reply += token
+                        yield token
         except Exception as e:
             yield f"\n[Error: {str(e)}]"
             return

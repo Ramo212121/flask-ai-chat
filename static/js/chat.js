@@ -14,24 +14,108 @@ document.addEventListener("DOMContentLoaded", () => {
     const previewImg = document.getElementById("preview-img");
     const removeImageBtn = document.getElementById("remove-image-btn");
 
+    // PDF elements
+    const pdfInput = document.getElementById("pdf-input");
+    const pdfPreview = document.getElementById("pdf-preview");
+    const pdfName = document.getElementById("pdf-name");
+    const removePdfBtn = document.getElementById("remove-pdf-btn");
+
+    // Model selector
+    const modelSelect = document.getElementById("model-select");
+    let currentModel = "openai/gpt-oss-120b";
+
+    // Emoji elements
+    const emojiBtn = document.getElementById("emoji-btn");
+    const emojiPicker = document.getElementById("emoji-picker");
+    const emojiClose = document.getElementById("emoji-close");
+    const emojiGrid = document.getElementById("emoji-grid");
+
     // State
     let currentChatId = null;
     let currentImageBase64 = null;
     let currentImageType = null;
+    let currentPdfFile = null;
+    let currentPdfName = "";
 
-    // ===== Add copy buttons to code blocks + apply highlight =====
+    // ===== Emoji Picker =====
+    const EMOJIS = [
+        "😀", "😃", "😄", "😁", "😆", "😅", "🤣", "😂",
+        "🙂", "🙃", "😉", "😊", "😇", "🥰", "😍", "🤩",
+        "😘", "😗", "😚", "😙", "🥲", "😋", "😛", "😜",
+        "🤪", "😝", "🤑", "🤗", "🤭", "🤫", "🤔", "🤐",
+        "🤨", "😐", "😑", "😶", "😏", "😒", "🙄", "😬",
+        "😮", "😯", "😴", "🤤", "😪", "😵", "🤯", "🤠",
+        "👋", "🤚", "🖐️", "✋", "🖖", "👌", "🤌", "🤏",
+        "✌️", "🤞", "🤟", "🤘", "👈", "👉", "👆", "👇",
+        "👍", "👎", "✊", "👊", "🤛", "🤜", "👏", "🙌",
+        "🤝", "🙏", "💪", "🦾",
+        "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍",
+        "💔", "❣️", "💕", "💞", "💓", "💗", "💖", "💘",
+        "✨", "⭐", "🌟", "💫", "⚡", "🔥", "💥", "💯",
+        "🎉", "🎊", "🎈", "🎁", "🚀", "🎯", "🏆", "🥇",
+        "🐶", "🐱", "🐭", "🐹", "🐰", "🦊", "🐻", "🐼",
+        "🐨", "🐯", "🦁", "🐮", "🐷", "🐸", "🐵", "🦄",
+    ];
+
+    function initEmojiPicker() {
+        if (!emojiGrid) return;
+        emojiGrid.innerHTML = "";
+        EMOJIS.forEach(emoji => {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "emoji-item";
+            btn.textContent = emoji;
+            btn.addEventListener("click", () => {
+                input.value += emoji;
+                input.focus();
+            });
+            emojiGrid.appendChild(btn);
+        });
+    }
+
+    if (emojiBtn && emojiPicker) {
+        initEmojiPicker();
+
+        emojiBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            emojiPicker.classList.toggle("open");
+        });
+
+        if (emojiClose) {
+            emojiClose.addEventListener("click", () => {
+                emojiPicker.classList.remove("open");
+            });
+        }
+
+        document.addEventListener("click", (e) => {
+            if (
+                emojiPicker.classList.contains("open") &&
+                !emojiPicker.contains(e.target) &&
+                !emojiBtn.contains(e.target)
+            ) {
+                emojiPicker.classList.remove("open");
+            }
+        });
+    }
+
+    // ===== Model Selector =====
+    if (modelSelect) {
+        modelSelect.addEventListener("change", () => {
+            currentModel = modelSelect.value;
+        });
+    }
+
+    // ===== Add copy buttons + apply highlight =====
     function addCopyButtons(container) {
         if (!container) return;
         const pres = container.querySelectorAll ? container.querySelectorAll("pre") : [];
         pres.forEach(pre => {
-            // Apply syntax highlighting first
             const codeEl = pre.querySelector("code");
             if (codeEl && typeof hljs !== "undefined" && !codeEl.dataset.highlighted) {
                 hljs.highlightElement(codeEl);
                 codeEl.dataset.highlighted = "yes";
             }
 
-            // Skip if wrapper already exists
             if (pre.parentElement && pre.parentElement.classList.contains("code-block-wrapper")) return;
 
             const btn = document.createElement("button");
@@ -56,17 +140,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             });
 
-            // Wrapper oluştur
             const wrapper = document.createElement("div");
             wrapper.className = "code-block-wrapper";
-
             pre.parentNode.insertBefore(wrapper, pre);
             wrapper.appendChild(pre);
             wrapper.appendChild(btn);
         });
     }
 
-    // ===== Load chats from DB =====
+    // ===== Load chats =====
     async function loadChats() {
         try {
             const res = await fetch("/chats");
@@ -161,7 +243,7 @@ document.addEventListener("DOMContentLoaded", () => {
         `;
     }
 
-    // ===== New Chat button =====
+    // ===== New Chat =====
     newChatBtn.addEventListener("click", async () => {
         try {
             const res = await fetch("/chats", { method: "POST" });
@@ -203,7 +285,6 @@ document.addEventListener("DOMContentLoaded", () => {
         reader.readAsDataURL(file);
     });
 
-    // Remove image
     removeImageBtn.addEventListener("click", () => {
         currentImageBase64 = null;
         currentImageType = null;
@@ -212,13 +293,42 @@ document.addEventListener("DOMContentLoaded", () => {
         previewImg.src = "";
     });
 
+    // ===== PDF upload =====
+    if (pdfInput) {
+        pdfInput.addEventListener("change", (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (file.size > 10 * 1024 * 1024) {
+                alert("PDF too large. Max 10 MB.");
+                pdfInput.value = "";
+                return;
+            }
+
+            currentPdfFile = file;
+            currentPdfName = file.name;
+            pdfName.textContent = file.name;
+            pdfPreview.style.display = "inline-flex";
+        });
+    }
+
+    if (removePdfBtn) {
+        removePdfBtn.addEventListener("click", () => {
+            currentPdfFile = null;
+            currentPdfName = "";
+            pdfInput.value = "";
+            pdfPreview.style.display = "none";
+        });
+    }
+
     // ===== Form submit =====
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
 
         const text = input.value.trim();
-        if (!text && !currentImageBase64) return;
+        if (!text && !currentImageBase64 && !currentPdfFile) return;
 
+        // User message
         const imageUrl = currentImageBase64
             ? `data:${currentImageType};base64,${currentImageBase64}`
             : null;
@@ -240,8 +350,9 @@ document.addEventListener("DOMContentLoaded", () => {
         aiDiv.appendChild(aiContent);
         messages.appendChild(aiDiv);
         messages.scrollTop = messages.scrollHeight;
-
-        // Clear image preview
+        
+        // (PDF already handled above)
+        // Clear image preview (save sent values)
         const sentImageBase64 = currentImageBase64;
         const sentImageType = currentImageType;
         currentImageBase64 = null;
@@ -249,6 +360,40 @@ document.addEventListener("DOMContentLoaded", () => {
         imageInput.value = "";
         imagePreview.style.display = "none";
         previewImg.src = "";
+
+        // ===== PDF handling =====
+        let pdfText = "";
+        if (currentPdfFile) {
+            try {
+                const formData = new FormData();
+                formData.append("pdf", currentPdfFile);
+
+                const uploadRes = await fetch("/upload-pdf", {
+                    method: "POST",
+                    body: formData
+                });
+
+                const uploadData = await uploadRes.json();
+
+                if (uploadRes.ok) {
+                    pdfText = uploadData.text;
+                } else {
+                    aiContent.innerHTML = `<div style="color: #e74c3c;">PDF error: ${uploadData.error}</div>`;
+                    input.disabled = false;
+                    return;
+                }
+            } catch (err) {
+                aiContent.innerHTML = `<div style="color: #e74c3c;">PDF upload failed</div>`;
+                input.disabled = false;
+                return;
+            }
+
+            // Clear PDF after sending
+            currentPdfFile = null;
+            currentPdfName = "";
+            pdfInput.value = "";
+            pdfPreview.style.display = "none";
+        }
 
         let firstChunk = true;
 
@@ -260,7 +405,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     message: text,
                     chat_id: currentChatId,
                     image: sentImageBase64,
-                    image_type: sentImageType
+                    image_type: sentImageType,
+                    model: currentModel,
+                    pdf_text: pdfText
+                
                 })
             });
 
@@ -289,14 +437,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 aiContent.innerHTML = marked.parse(fullText);
                 messages.scrollTop = messages.scrollHeight;
 
-                // Copy buttons during streaming
                 addCopyButtons(aiContent);
             }
 
             // Final pass
             addCopyButtons(aiContent);
 
-            // Add full-message copy button (streaming)
+            // Full message copy button
             if (aiContent.textContent.trim()) {
                 const aiMsgDiv = aiContent.closest(".message");
                 if (aiMsgDiv && !aiMsgDiv.querySelector(".copy-message-btn")) {
@@ -392,7 +539,7 @@ document.addEventListener("DOMContentLoaded", () => {
         div.appendChild(content);
         div.appendChild(timestamp);
 
-        // Full-message copy button (only for AI messages)
+        // Full message copy button (AI only)
         if (sender === "ai" && text) {
             const msgActions = document.createElement("div");
             msgActions.className = "message-actions";
@@ -424,7 +571,6 @@ document.addEventListener("DOMContentLoaded", () => {
         messages.appendChild(div);
         messages.scrollTop = messages.scrollHeight;
 
-        // Code block copy buttons + highlight
         addCopyButtons(content);
     }
 
@@ -435,7 +581,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return div.innerHTML;
     }
 
-    // ===== Sidebar toggle (mobile) =====
+    // ===== Sidebar toggle =====
     if (menuToggle && sidebar) {
         menuToggle.addEventListener("click", () => {
             sidebar.classList.toggle("open");
