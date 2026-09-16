@@ -3,12 +3,129 @@ document.addEventListener("DOMContentLoaded", () => {
     const input = document.getElementById("chat-input");
     const messages = document.getElementById("chat-messages");
     const clearBtn = document.getElementById("clear-btn");
+    const chatList = document.getElementById("chat-list");
+    const newChatBtn = document.getElementById("new-chat-btn");
+    const menuToggle = document.getElementById("menu-toggle");
+    const sidebar = document.getElementById("sidebar");
 
-    // Load history when page opens
-    async function loadHistory() {
+    // Image elements
+    const imageInput = document.getElementById("image-input");
+    const imagePreview = document.getElementById("image-preview");
+    const previewImg = document.getElementById("preview-img");
+    const removeImageBtn = document.getElementById("remove-image-btn");
+
+    // State
+    let currentChatId = null;
+    let currentImageBase64 = null;
+    let currentImageType = null;
+
+    // ===== Add copy buttons to code blocks + apply highlight =====
+    function addCopyButtons(container) {
+        if (!container) return;
+        const pres = container.querySelectorAll ? container.querySelectorAll("pre") : [];
+        pres.forEach(pre => {
+            // Apply syntax highlighting first
+            const codeEl = pre.querySelector("code");
+            if (codeEl && typeof hljs !== "undefined" && !codeEl.dataset.highlighted) {
+                hljs.highlightElement(codeEl);
+                codeEl.dataset.highlighted = "yes";
+            }
+
+            // Skip if wrapper already exists
+            if (pre.parentElement && pre.parentElement.classList.contains("code-block-wrapper")) return;
+
+            const btn = document.createElement("button");
+            btn.className = "copy-code-btn";
+            btn.textContent = "Copy";
+            btn.type = "button";
+
+            btn.addEventListener("click", async (e) => {
+                e.stopPropagation();
+                const codeEl2 = pre.querySelector("code");
+                const code = codeEl2 ? codeEl2.textContent : pre.textContent;
+                try {
+                    await navigator.clipboard.writeText(code);
+                    btn.textContent = "Copied!";
+                    btn.classList.add("copied");
+                    setTimeout(() => {
+                        btn.textContent = "Copy";
+                        btn.classList.remove("copied");
+                    }, 2000);
+                } catch (err) {
+                    console.error("Copy failed:", err);
+                }
+            });
+
+            // Wrapper oluştur
+            const wrapper = document.createElement("div");
+            wrapper.className = "code-block-wrapper";
+
+            pre.parentNode.insertBefore(wrapper, pre);
+            wrapper.appendChild(pre);
+            wrapper.appendChild(btn);
+        });
+    }
+
+    // ===== Load chats from DB =====
+    async function loadChats() {
         try {
-            const response = await fetch("/history");
-            const data = await response.json();
+            const res = await fetch("/chats");
+            const data = await res.json();
+
+            chatList.innerHTML = "";
+
+            if (!data.chats || data.chats.length === 0) {
+                chatList.innerHTML = '<p class="empty-hint">No chats yet</p>';
+                return;
+            }
+
+            data.chats.forEach(chat => {
+                const item = document.createElement("div");
+                item.className = "chat-item";
+                if (chat.id === currentChatId) item.classList.add("active");
+
+                item.innerHTML = `
+                    <span class="chat-title">${escapeHtml(chat.title)}</span>
+                    <button class="delete-chat-btn" title="Delete">×</button>
+                `;
+
+                item.addEventListener("click", (e) => {
+                    if (e.target.classList.contains("delete-chat-btn")) return;
+                    openChat(chat.id);
+                });
+
+                const delBtn = item.querySelector(".delete-chat-btn");
+                delBtn.addEventListener("click", async (e) => {
+                    e.stopPropagation();
+                    if (!confirm("Delete this chat?")) return;
+
+                    try {
+                        await fetch(`/chats/${chat.id}`, { method: "DELETE" });
+                        if (chat.id === currentChatId) {
+                            currentChatId = null;
+                            resetMessages();
+                        }
+                        loadChats();
+                    } catch (err) {
+                        console.error("Delete failed:", err);
+                    }
+                });
+
+                chatList.appendChild(item);
+            });
+        } catch (err) {
+            console.error("Failed to load chats:", err);
+        }
+    }
+
+    // ===== Open a chat =====
+    async function openChat(chatId) {
+        currentChatId = chatId;
+        resetMessages();
+
+        try {
+            const res = await fetch(`/history/${chatId}`);
+            const data = await res.json();
 
             if (data.history && data.history.length > 0) {
                 messages.innerHTML = "";
@@ -17,25 +134,100 @@ document.addEventListener("DOMContentLoaded", () => {
                     addMessage(msg.content, sender);
                 });
             }
+
+            addCopyButtons(messages);
+
+            document.querySelectorAll(".chat-item").forEach(el => {
+                el.classList.remove("active");
+            });
+            loadChats();
+
+            if (window.innerWidth <= 768) {
+                sidebar.classList.remove("open");
+            }
         } catch (err) {
-            console.error("Failed to load history:", err);
+            console.error("Failed to open chat:", err);
         }
     }
 
-    loadHistory();
+    // ===== Reset messages =====
+    function resetMessages() {
+        messages.innerHTML = `
+            <div class="message ai-message">
+                <div class="message-content">
+                    Hello! 👋 I'm an AI assistant. Ask me anything!
+                </div>
+            </div>
+        `;
+    }
 
-    // Handle form submit
+    // ===== New Chat button =====
+    newChatBtn.addEventListener("click", async () => {
+        try {
+            const res = await fetch("/chats", { method: "POST" });
+            const data = await res.json();
+            currentChatId = data.id;
+            resetMessages();
+            await loadChats();
+
+            if (window.innerWidth <= 768) {
+                sidebar.classList.remove("open");
+            }
+
+            input.focus();
+        } catch (err) {
+            console.error("Failed to create chat:", err);
+        }
+    });
+
+    // ===== Image upload =====
+    imageInput.addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (file.size > 5 * 1024 * 1024) {
+            alert("Image too large. Max 5 MB.");
+            imageInput.value = "";
+            return;
+        }
+
+        currentImageType = file.type;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const dataUrl = event.target.result;
+            currentImageBase64 = dataUrl.split(",")[1];
+            previewImg.src = dataUrl;
+            imagePreview.style.display = "inline-block";
+        };
+        reader.readAsDataURL(file);
+    });
+
+    // Remove image
+    removeImageBtn.addEventListener("click", () => {
+        currentImageBase64 = null;
+        currentImageType = null;
+        imageInput.value = "";
+        imagePreview.style.display = "none";
+        previewImg.src = "";
+    });
+
+    // ===== Form submit =====
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
 
         const text = input.value.trim();
-        if (!text) return;
+        if (!text && !currentImageBase64) return;
 
-        addMessage(text, "user");
+        const imageUrl = currentImageBase64
+            ? `data:${currentImageType};base64,${currentImageBase64}`
+            : null;
+        addMessage(text, "user", imageUrl);
+
         input.value = "";
         input.disabled = true;
 
-        // Create empty AI message bubble with typing indicator
+        // Typing indicator
         const aiDiv = document.createElement("div");
         aiDiv.className = "message ai-message";
         const aiContent = document.createElement("div");
@@ -49,16 +241,27 @@ document.addEventListener("DOMContentLoaded", () => {
         messages.appendChild(aiDiv);
         messages.scrollTop = messages.scrollHeight;
 
-        // İlk token gelince typing indicator'ı temizle
+        // Clear image preview
+        const sentImageBase64 = currentImageBase64;
+        const sentImageType = currentImageType;
+        currentImageBase64 = null;
+        currentImageType = null;
+        imageInput.value = "";
+        imagePreview.style.display = "none";
+        previewImg.src = "";
+
         let firstChunk = true;
 
         try {
             const response = await fetch("/chat", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({ message: text })
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    message: text,
+                    chat_id: currentChatId,
+                    image: sentImageBase64,
+                    image_type: sentImageType
+                })
             });
 
             if (!response.ok) {
@@ -78,7 +281,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 const chunk = decoder.decode(value, { stream: true });
                 fullText += chunk;
 
-                // İlk token geldiğinde typing indicator'ı kaldır
                 if (firstChunk) {
                     aiContent.innerHTML = "";
                     firstChunk = false;
@@ -86,7 +288,49 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 aiContent.innerHTML = marked.parse(fullText);
                 messages.scrollTop = messages.scrollHeight;
+
+                // Copy buttons during streaming
+                addCopyButtons(aiContent);
             }
+
+            // Final pass
+            addCopyButtons(aiContent);
+
+            // Add full-message copy button (streaming)
+            if (aiContent.textContent.trim()) {
+                const aiMsgDiv = aiContent.closest(".message");
+                if (aiMsgDiv && !aiMsgDiv.querySelector(".copy-message-btn")) {
+                    const msgActions = document.createElement("div");
+                    msgActions.className = "message-actions";
+
+                    const fullCopyBtn = document.createElement("button");
+                    fullCopyBtn.className = "copy-message-btn";
+                    fullCopyBtn.type = "button";
+                    fullCopyBtn.textContent = "Copy";
+
+                    const capturedText = aiContent.textContent;
+
+                    fullCopyBtn.addEventListener("click", async (e) => {
+                        e.stopPropagation();
+                        try {
+                            await navigator.clipboard.writeText(capturedText);
+                            fullCopyBtn.textContent = "Copied!";
+                            fullCopyBtn.classList.add("copied");
+                            setTimeout(() => {
+                                fullCopyBtn.textContent = "Copy";
+                                fullCopyBtn.classList.remove("copied");
+                            }, 2000);
+                        } catch (err) {
+                            console.error("Copy failed:", err);
+                        }
+                    });
+
+                    msgActions.appendChild(fullCopyBtn);
+                    aiMsgDiv.appendChild(msgActions);
+                }
+            }
+
+            await loadChats();
         } catch (err) {
             aiContent.textContent = "Connection error. Try again.";
         } finally {
@@ -95,37 +339,49 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // Handle clear button
+    // ===== Clear button =====
     clearBtn.addEventListener("click", async () => {
+        if (!currentChatId) {
+            resetMessages();
+            return;
+        }
+
         try {
-            await fetch("/history", { method: "DELETE" });
-            messages.innerHTML = `
-                <div class="message ai-message">
-                    <div class="message-content">
-                        Hello! 👋 I'm an AI assistant. Ask me anything!
-                    </div>
-                </div>
-            `;
+            await fetch(`/history/${currentChatId}`, { method: "DELETE" });
+            resetMessages();
         } catch (err) {
-            console.error("Failed to clear history:", err);
+            console.error("Clear failed:", err);
         }
     });
 
-    // Add a message to the screen
-    function addMessage(text, sender) {
+    // ===== Add message =====
+    function addMessage(text, sender, imageUrl = null) {
         const div = document.createElement("div");
         div.className = `message ${sender}-message`;
 
         const content = document.createElement("div");
         content.className = "message-content";
 
-        if (sender === "ai") {
-            content.innerHTML = marked.parse(text);
-        } else {
-            content.textContent = text;
+        if (imageUrl) {
+            const img = document.createElement("img");
+            img.src = imageUrl;
+            img.className = "message-image";
+            img.alt = "Uploaded image";
+            content.appendChild(img);
         }
 
-        // Timestamp
+        if (text) {
+            if (sender === "ai") {
+                const textDiv = document.createElement("div");
+                textDiv.innerHTML = marked.parse(text);
+                content.appendChild(textDiv);
+            } else {
+                const textDiv = document.createElement("div");
+                textDiv.textContent = text;
+                content.appendChild(textDiv);
+            }
+        }
+
         const timestamp = document.createElement("div");
         timestamp.className = "message-timestamp";
         timestamp.textContent = new Date().toLocaleTimeString([], {
@@ -135,27 +391,56 @@ document.addEventListener("DOMContentLoaded", () => {
 
         div.appendChild(content);
         div.appendChild(timestamp);
+
+        // Full-message copy button (only for AI messages)
+        if (sender === "ai" && text) {
+            const msgActions = document.createElement("div");
+            msgActions.className = "message-actions";
+
+            const fullCopyBtn = document.createElement("button");
+            fullCopyBtn.className = "copy-message-btn";
+            fullCopyBtn.type = "button";
+            fullCopyBtn.textContent = "Copy";
+
+            fullCopyBtn.addEventListener("click", async (e) => {
+                e.stopPropagation();
+                try {
+                    await navigator.clipboard.writeText(text);
+                    fullCopyBtn.textContent = "Copied!";
+                    fullCopyBtn.classList.add("copied");
+                    setTimeout(() => {
+                        fullCopyBtn.textContent = "Copy";
+                        fullCopyBtn.classList.remove("copied");
+                    }, 2000);
+                } catch (err) {
+                    console.error("Copy failed:", err);
+                }
+            });
+
+            msgActions.appendChild(fullCopyBtn);
+            div.appendChild(msgActions);
+        }
+
         messages.appendChild(div);
         messages.scrollTop = messages.scrollHeight;
+
+        // Code block copy buttons + highlight
+        addCopyButtons(content);
     }
 
-    // Escape HTML to prevent XSS
+    // ===== Escape HTML =====
     function escapeHtml(text) {
         const div = document.createElement("div");
         div.textContent = text;
         return div.innerHTML;
     }
 
-    // Sidebar toggle for mobile
-    const menuToggle = document.getElementById("menu-toggle");
-    const sidebar = document.getElementById("sidebar");
-
+    // ===== Sidebar toggle (mobile) =====
     if (menuToggle && sidebar) {
         menuToggle.addEventListener("click", () => {
             sidebar.classList.toggle("open");
         });
 
-        // Sidebar dışına tıklayınca kapat
         document.addEventListener("click", (e) => {
             if (
                 sidebar.classList.contains("open") &&
@@ -167,11 +452,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // New Chat button (placeholder — Gün 10'da çalışacak)
-    const newChatBtn = document.getElementById("new-chat-btn");
-    if (newChatBtn) {
-        newChatBtn.addEventListener("click", () => {
-            console.log("New chat — will be functional on Day 10");
-        });
-    }
+    // ===== Initial load =====
+    loadChats();
 });

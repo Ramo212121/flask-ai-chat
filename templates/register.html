@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}Register — Flask AI Chat{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <h2>Register</h2>
+        <form id="register-form">
+            <input type="text" id="username" placeholder="Username (min 3 chars)" autocomplete="username" required>
+            <input type="email" id="email" placeholder="Email" autocomplete="email" required>
+            <input type="password" id="password" placeholder="Password (min 6 chars)" autocomplete="new-password" required>
+            <button type="submit">Register</button>
+        </form>
+        <p class="auth-link">
+            Already have an account? <a href="/login">Login</a>
+        </p>
+        <p class="auth-error" id="auth-error"></p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+{% endblock %}

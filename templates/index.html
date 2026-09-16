@@ -31,16 +31,24 @@
             </div>
         </div>
 
-        <form class="chat-form" id="chat-form">
-            <input 
-                type="text" 
-                id="chat-input" 
-                class="chat-input" 
-                placeholder="Type your message..." 
-                autocomplete="off"
-            >
-            <button type="submit" class="chat-button">Send</button>
-        </form>
+<form class="chat-form" id="chat-form">
+    <div class="image-preview" id="image-preview" style="display: none;">
+        <img id="preview-img" src="" alt="Preview">
+        <button type="button" class="remove-image-btn" id="remove-image-btn">×</button>
+    </div>
+    <div class="input-row">
+        <label for="image-input" class="attach-btn" title="Attach image">📎</label>
+        <input type="file" id="image-input" accept="image/*" style="display: none;">
+        <input 
+            type="text" 
+            id="chat-input" 
+            class="chat-input" 
+            placeholder="Type your message..." 
+            autocomplete="off"
+        >
+        <button type="submit" class="chat-button">Send</button>
+    </div>
+</form>
     </div>
 </div>
 {% endblock %}

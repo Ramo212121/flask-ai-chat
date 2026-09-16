@@ -296,3 +296,240 @@ UI is where projects stand out. Most tutorials skip this. I'm building it step b
 
 
 
+
+## Day 8 — Database (SQLite + SQLAlchemy)
+
+### What I built
+- SQLite database with SQLAlchemy ORM
+- Three models: `User`, `Chat`, `Message`
+- Relationships: User → Chat → Message (1-to-N, 1-to-N)
+- Cascade delete (delete chat → delete its messages)
+- Migrated from session-based history to DB-based storage
+- New endpoints: `/chats` (GET, POST, DELETE)
+- Updated `/history` to use `chat_id` instead of session
+
+### What I learned
+- ORM (Object-Relational Mapping) — write Python, not SQL
+- `db.Column()` types: Integer, String, Text, DateTime
+- Primary key (`id`) and Foreign key (`user_id`, `chat_id`)
+- `db.relationship()` for 1-to-N relationships
+- `cascade="all, delete-orphan"` for auto-delete
+- `db.session.add()` + `db.session.commit()` to save
+- `Model.query.get()` / `.filter_by().first()` to read
+- `db.create_all()` inside `with app.app_context():`
+
+### Django comparison
+| Flask + SQLAlchemy | Django ORM |
+|--------------------|------------|
+| `db.Model` | `models.Model` |
+| `db.Column(db.String(80))` | `models.CharField(max_length=80)` |
+| `db.Column(db.Text)` | `models.TextField()` |
+| `db.Column(db.DateTime)` | `models.DateTimeField()` |
+| `db.ForeignKey("user.id")` | `models.ForeignKey(User, ...)` |
+| `db.relationship()` | `related_name` |
+| `db.create_all()` | `makemigrations` + `migrate` |
+| `db.session.add()` + `commit()` | `Model.objects.create()` |
+| `Model.query.get(id)` | `Model.objects.get(id=id)` |
+| `Model.query.filter_by(...).all()` | `Model.objects.filter(...)` |
+
+### Where I needed help
+- Understanding ORM vs raw SQL
+- Foreign key concept
+- Cascade delete behavior
+- Why `app_context()` is needed
+- Why `db.session.commit()` is required
+- `.gitignore` for `instance/` and `*.db`
+
+### Honest note
+Django's migrations are more robust (versioned, reversible). Flask's `create_all()` is simpler but less flexible. For a learning project, `create_all()` is enough. For production, migrations matter.
+
+### Impact
+- Session 4 KB limit is gone — now unlimited messages
+- Data persists across server restarts
+- Ready for multi-user (Day 9) and multi-chat (Day 10)
+
+
+## Day 9 — Login / Register
+
+### What I built
+- User registration with validation (username, email, password)
+- Login with password verification
+- Password hashing with `werkzeug.security`
+- Session-based authentication (`session["user_id"]`)
+- `@login_required` decorator (custom)
+- Logout endpoint
+- `/me` endpoint (returns current user)
+- Login + Register HTML pages
+- Header user menu (username + Logout button)
+- Protected routes: `/`, `/chat`, `/chats`, `/history`
+
+### What I learned
+- Never store plain passwords — always hash
+- `generate_password_hash()` and `check_password_hash()`
+- Session for auth: `session["user_id"] = user.id`
+- Decorator pattern with `@wraps(f)`
+- `redirect(url_for("login_page"))` for unauthenticated users
+- Ownership check: `if chat.user_id != session["user_id"]` → 403
+- HTTP status codes: 400 (bad request), 401 (unauthorized), 403 (forbidden), 409 (conflict)
+
+### Django comparison
+| Flask + Werkzeug | Django |
+|------------------|--------|
+| `generate_password_hash()` | `user.set_password()` |
+| `check_password_hash()` | `user.check_password()` |
+| `@login_required` (custom, ~8 lines) | `@login_required` (built-in) |
+| `session["user_id"] = user.id` | `login(request, user)` |
+| `session.pop("user_id")` | `logout(request)` |
+| Custom User model | Built-in `User` model |
+| Manual validation | Django Forms |
+| No CSRF protection yet | CSRF enabled by default |
+
+### Where I needed help
+- `@wraps(f)` — why it's needed in decorators
+- Difference between authentication and authorization
+- Session vs DB storage for "who is logged in"
+- Why password hashing is not optional
+- Redirect logic with `url_for`
+- Checking ownership (user_id) before allowing access
+
+### Honest note
+Django's auth system is **much** more complete — user model, permissions, groups, password reset, CSRF, session security all built-in. Building it manually in Flask taught me **what Django does for me automatically**.
+
+This is exactly why I'm learning Flask first — to understand the underlying mechanisms.
+
+### Security considerations (current state)
+- ✅ Passwords are hashed
+- ✅ Session-based auth
+- ✅ Ownership checks on chats
+- ⚠️ No CSRF protection yet (Day 20)
+- ⚠️ No rate limiting (Day 20)
+- ⚠️ No email verification
+- ⚠️ No "forgot password" flow
+- ⚠️ Session cookie not `Secure` / `HttpOnly` yet
+
+### Impact
+- Multi-user support
+- Each user has their own chats
+- Data privacy per user
+- Ready for functional multi-chat sidebar (Day 10)
+
+
+
+
+
+## Day 10 — Functional Sidebar + Multi-Chat
+
+### What I built
+- Sidebar loaded from DB (`/chats` GET)
+- New Chat button (creates chat via `/chats` POST)
+- Chat list with titles
+- Click to open chat (`/history/<id>` GET)
+- Delete chat (`/chats/<id>` DELETE)
+- Active chat highlighting
+- Auto-load chat history per chat
+- Mobile: sidebar closes after selection
+
+### What I learned
+- Fetching and rendering dynamic lists
+- Event delegation (delete button inside chat item)
+- `e.stopPropagation()` — prevent click bubbling
+- Active state management (CSS class toggle)
+- Confirmation before destructive actions
+- Auto-reload after mutations (create/delete)
+- Selecting elements with `querySelectorAll`
+
+### Django comparison
+| Flask | Django |
+|-------|--------|
+| Manual DOM rendering | Django admin provides this |
+| Custom `/chats` endpoint | Django CBV/DRF viewset |
+| Manual click handlers | Same |
+| `fetch` from frontend | Same, but could use Django templates |
+
+### Where I needed help
+- Event bubbling and `stopPropagation`
+- Managing `currentChatId` state
+- Reloading after mutations
+- Active class toggling
+- Mobile sidebar auto-close
+
+### Honest note
+This is where the project starts to **feel like a real app**. ChatGPT-style sidebar with multiple chats. Most tutorials never go this far.
+
+### Impact
+- User can have multiple conversations
+- Each chat has its own history
+- Sidebar acts like ChatGPT's
+- Data persists across sessions (DB)
+
+
+## Day 11 — Image Upload (Multimodal AI)
+
+### What I built
+- 📎 attach button in chat form (next to input)
+- Image preview before sending (with × remove button)
+- Base64 encoding in browser (FileReader API)
+- Sent image + text to Groq
+- Switched to Llama 4 Scout model for vision
+- Rendered user's image inside chat bubble
+- Remove image button
+- 5 MB file size limit
+- DB stores `[Image]` placeholder for image-only messages
+
+### What I learned
+- `FileReader` API for reading files in browser
+- `readAsDataURL()` → base64 encoding
+- Stripping `data:image/...;base64,` prefix
+- Multimodal message format:
+  ```python
+  {
+    "role": "user",
+    "content": [
+      {"type": "text", "text": "What's this?"},
+      {"type": "image_url", "image_url": {"url": "data:image/png;base64,..."}}
+    ]
+  }
+  
+
+## Day 13 — Syntax Highlighting (highlight.js)
+
+### What I built
+- Added highlight.js for syntax highlighting
+- Two themes: light (github) + dark (github-dark)
+- Auto-switching themes based on dark mode toggle
+- Highlight applied before copy button
+- Language detection from markdown code blocks
+
+### What I learned
+- `hljs.highlightElement(el)` — apply highlight to DOM element
+- `data-highlighted` attribute prevents re-highlighting
+- Link tag with `disabled` attribute for inactive theme
+- CDN download for local use
+- Syntax highlighting works automatically based on `language-xxx` class
+- Overriding highlight.js default styles
+
+### Django comparison
+| Flask | Django |
+|-------|--------|
+| Same JS library | Same |
+| Same CSS themes | Same |
+| No django-specific code | Same |
+
+### Where I needed help
+- Understanding how highlight.js detects language
+- Preventing double highlighting
+- Theme switching for highlight CSS
+- Overriding default background colors
+- `dataset` attribute for state tracking
+
+### Honest note
+Highlight.js is **dead simple** to add — just 2 files (JS + CSS). Result is beautiful: code blocks look professional (like GitHub or VS Code).
+
+The tricky part was making it work with **dark mode**. Solution: load both themes, enable/disable via `link.disabled`.
+
+### Impact
+- Code blocks look professional
+- Python, JS, HTML, etc. all supported
+- Follows dark/light mode automatically
+- Copy button still works
+- Project feels like a real IDE

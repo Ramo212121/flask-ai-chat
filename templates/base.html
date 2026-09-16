@@ -10,11 +10,26 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 
-    <!-- Marked.js for Markdown rendering -->
+    <!-- Marked.js -->
     <script src="{{ url_for('static', filename='js/marked.min.js') }}"></script>
+
+    <!-- Highlight.js -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/highlight-light.css') }}" id="hljs-light">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/highlight-dark.css') }}" id="hljs-dark" disabled>
+    <script src="{{ url_for('static', filename='js/highlight.min.js') }}"></script>
+
+    <!-- Theme -->
+    <script>
+        (function() {
+            const theme = localStorage.getItem("theme") || "light";
+            document.documentElement.setAttribute("data-theme", theme);
+        })();
+    </script>
+    <script src="{{ url_for('static', filename='js/theme.js') }}" defer></script>
 
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
+
 <body>
     <!-- Background video -->
     <video class="bg-video" autoplay muted loop playsinline>
@@ -29,8 +44,10 @@
         </a>
     </div>
     <div class="header-right">
+        <button class="theme-toggle" id="theme-toggle" title="Toggle theme">🌙</button>
         <div class="user-menu" id="user-menu">
-            <span class="user-name">Guest</span>
+            <span class="user-name" id="user-name">...</span>
+            <button class="logout-btn" id="logout-btn">Logout</button>
         </div>
     </div>
 </header>
@@ -44,5 +61,39 @@
     </footer>
 
     {% block scripts %}{% endblock %}
+
+    <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+        const userNameEl = document.getElementById("user-name");
+        const logoutBtn = document.getElementById("logout-btn");
+        const userMenu = document.getElementById("user-menu");
+
+        // Get current user
+        try {
+            const res = await fetch("/me");
+            const data = await res.json();
+            if (data.user) {
+                userNameEl.textContent = data.user.username;
+            } else {
+                // Hide user menu if not logged in
+                if (userMenu) userMenu.style.display = "none";
+            }
+        } catch (err) {
+            console.error("Failed to fetch user:", err);
+        }
+
+        // Logout
+        if (logoutBtn) {
+            logoutBtn.addEventListener("click", async () => {
+                try {
+                    await fetch("/logout", { method: "POST" });
+                    window.location.href = "/login";
+                } catch (err) {
+                    console.error("Logout failed:", err);
+                }
+            });
+        }
+    });
+    </script>
 </body>
 </html>
