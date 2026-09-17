@@ -318,15 +318,19 @@ document.addEventListener("DOMContentLoaded", () => {
             chatList.innerHTML = "";
 
             if (!data.chats || data.chats.length === 0) {
+                const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+                const h3Color = isDark ? "#e8e8f0" : "#1a1a2e";
+                const pColor = isDark ? "#a0a0b5" : "#4a4a5e";
+
                 chatList.innerHTML = `
                     <div class="empty-state">
                         <div class="empty-state-icon">💬</div>
-                        <h3>No chats yet</h3>
-                        <p>Click "New Chat" to start your first conversation</p>
+                        <h3 style="color: ${h3Color};">No chats yet</h3>
+                        <p style="color: ${pColor};">Click "New Chat" to start your first conversation</p>
                     </div>
-                `;
-                return;
-            }
+    `;
+    return;
+}
 
             data.chats.forEach(chat => {
                 const item = document.createElement("div");
