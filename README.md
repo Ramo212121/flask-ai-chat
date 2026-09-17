@@ -1,3 +1,9 @@
+## 🌐 Live Demo
+
+👉 **[https://flask-ai-chat-rx29.onrender.com/login](https://flask-ai-chat-rx29.onrender.com/login)**
+
+> **Note:** Hosted on Render's free tier. First load may take ~30 seconds to wake up.
+
 # 🤖 Flask AI Chat
 
 A full-stack AI chat application built with Flask and Groq API.
