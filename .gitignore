@@ -1,7 +1,7 @@
 venv/
 __pycache__/
 *.pyc
-.env
+.env.example
 .DS_Store
 instance/
 *.db
