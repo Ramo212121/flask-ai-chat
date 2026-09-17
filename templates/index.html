@@ -26,7 +26,8 @@
                 <select class="model-select" id="model-select" title="Select model">
                     <option value="openai/gpt-oss-120b">GPT-OSS 120B</option>
                     <option value="openai/gpt-oss-20b">GPT-OSS 20B (fast)</option>
-                    <option value="qwen/qwen3.8-27b">Qwen 3.8 27B (vision)</option>                </select>
+                    <option value="qwen/qwen3.8-27b">Qwen 3.8 27B (vision)</option>
+                </select>
                 <button type="button" id="clear-btn" class="clear-button">Clear</button>
             </div>
         </div>
@@ -53,30 +54,37 @@
                 <button type="button" class="remove-image-btn" id="remove-pdf-btn">×</button>
             </div>
 
+            <!-- DeepSeek-style input row: input top, buttons bottom -->
             <div class="input-row">
-                <label for="image-input" class="attach-btn" title="Attach image">📎</label>
-                <input type="file" id="image-input" accept="image/*" style="display: none;">
-
-                <label for="pdf-input" class="attach-btn" title="Attach PDF">📄</label>
-                <input type="file" id="pdf-input" accept=".pdf" style="display: none;">
-                <button type="button" class="mic-btn" id="mic-btn" title="Hold to record">🎤</button>
-                <button type="button" class="emoji-btn" id="emoji-btn" title="Emoji">😀</button>
-                <div class="emoji-picker" id="emoji-picker">
-                    <div class="emoji-picker-header">
-                        <span>Emojis</span>
-                        <button type="button" class="emoji-close" id="emoji-close">×</button>
-                    </div>
-                    <div class="emoji-grid" id="emoji-grid"></div>
-                </div>
-
-                <input 
-                    type="text" 
+                <!-- Input (üst satır) -->
+                <textarea 
                     id="chat-input" 
                     class="chat-input" 
                     placeholder="Type your message..." 
-                    autocomplete="off"
-                >
-                <button type="submit" class="chat-button">Send</button>
+                    rows="2"
+                ></textarea>
+
+                <!-- Butonlar (alt satır) -->
+                <div class="input-buttons">
+                    <label for="image-input" class="attach-btn" title="Attach image">📎</label>
+                    <input type="file" id="image-input" accept="image/*" style="display: none;">
+
+                    <label for="pdf-input" class="attach-btn" title="Attach PDF">📄</label>
+                    <input type="file" id="pdf-input" accept=".pdf" style="display: none;">
+
+                    <button type="button" class="mic-btn" id="mic-btn" title="Hold to record">🎤</button>
+
+                    <button type="button" class="emoji-btn" id="emoji-btn" title="Emoji">😀</button>
+                    <div class="emoji-picker" id="emoji-picker">
+                        <div class="emoji-picker-header">
+                            <span>Emojis</span>
+                            <button type="button" class="emoji-close" id="emoji-close">×</button>
+                        </div>
+                        <div class="emoji-grid" id="emoji-grid"></div>
+                    </div>
+
+                    <button type="submit" class="chat-button">Send</button>
+                </div>
             </div>
         </form>
     </div>

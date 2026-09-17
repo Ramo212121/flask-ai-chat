@@ -1016,7 +1016,106 @@ These are the things recruiters notice.
 - Be genuine, not robotic
 
 
+## Day 23 — Design Polish Part 2
 
+### What I built
+- Toast notification system (success, error, warning, info)
+- Confirm modal (replaces browser `confirm()`)
+- Loading spinner on Send button
+- Empty state for sidebar
+- Loading skeleton (CSS ready for future)
+- Modal with fade-in + scale animation
+- Toast slide-in from right + auto-dismiss
+
+### What I learned
+- Toast pattern — non-blocking notifications
+- Promise-based modal — `await confirmModal(...)` returns true/false
+- Event listener cleanup — remove listeners after modal close
+- Auto-dismiss — `setTimeout` with animation before remove
+- Loading states — disable button, show spinner
+- Empty states — better UX than blank screen
+
+### Toast types
+| Type | Icon | Color |
+|------|------|-------|
+| success | ✓ | Green |
+| error | ✕ | Red |
+| warning | ⚠ | Orange |
+| info | ℹ | Blue |
+
+### Django comparison
+| Flask | Django |
+|-------|--------|
+| Same JavaScript | Same |
+| Could use Django messages framework | Better for server-side |
+| Client-side toasts | Server-side toasts |
+
+### Where I needed help
+- Promise-based modal pattern
+- Toast auto-dismiss with animation
+- Event listener cleanup (memory leaks)
+- Loading state on button
+- Empty state design
+
+### Honest note
+Toast notifications are subtle but powerful. They give feedback without blocking the user. ChatGPT uses them everywhere.
+
+Modal for destructive actions is essential. Browser `confirm()` is ugly and inconsistent. Custom modal = branded + pretty.
+
+Loading states prevent confusion. User sees something is happening.
+
+### Impact
+- Better UX feedback (toasts)
+- Safer destructive actions (modal)
+- Clear loading state (spinner)
+- Better guidance (empty states)
+- App feels 10x more polished
+
+
+## Day 24 — Mobile Responsive Polish
+
+### What I built
+- Mobile-first responsive design (768px breakpoint)
+- Sidebar drawer with overlay
+- Touch target sizes (44px minimum)
+- Font 16px on inputs (prevents iOS zoom)
+- Emoji picker as bottom sheet on mobile
+- Toast notifications at bottom on mobile
+- Landscape mode support
+- Touch device optimizations
+- Safe area support (iPhone notch)
+- Small phone optimizations (480px)
+- DeepSeek-style auto-grow textarea
+- Input row reorganized for mobile (input top, buttons bottom)
+
+### What I learned
+- Mobile breakpoint: 768px (covers tablets)
+- `position: fixed` + `transform: translateX()` for drawer
+- `env(safe-area-inset-*)` for iPhone notch
+- `@media (hover: none)` for touch devices
+- iOS zooms on inputs < 16px (fix: `font-size: 16px`)
+- Bottom sheet pattern for mobile pickers
+- ESC key closes overlays
+- Touch targets should be ≥ 44px (Apple HIG)
+- Auto-grow textarea: `el.style.height = Math.min(el.scrollHeight, 200) + "px"`
+- `order` property in flex to reorder elements
+
+### Responsive breakpoints
+| Breakpoint | Target |
+|------------|--------|
+| 769px+ | Desktop |
+| 768px | Tablets |
+| 480px | Small phones |
+| Landscape | Rotation |
+| `hover: none` | Touch devices |
+
+### Auto-grow textarea (DeepSeek-style)
+```javascript
+function autoGrowTextarea(el) {
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 200) + "px";
+}
+input.addEventListener("input", () => autoGrowTextarea(input));
 
 ## Port Note
 On macOS, AirPlay uses port 5000. Flask runs on 5001.

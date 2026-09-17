@@ -7,6 +7,27 @@ document.addEventListener("DOMContentLoaded", () => {
     const newChatBtn = document.getElementById("new-chat-btn");
     const menuToggle = document.getElementById("menu-toggle");
     const sidebar = document.getElementById("sidebar");
+    const sendBtn = form.querySelector(".chat-button");
+
+        // ===== Auto-grow textarea (DeepSeek style) =====
+    function autoGrowTextarea(el) {
+        el.style.height = "auto";
+        el.style.height = Math.min(el.scrollHeight, 200) + "px";
+    }
+
+    if (input) {
+        input.addEventListener("input", () => {
+            autoGrowTextarea(input);
+        });
+
+        // Enter to send, Shift+Enter for new line
+        input.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                form.requestSubmit();
+            }
+        });
+    }
 
     // ===== Text-to-Speech (TTS) with gTTS =====
     let currentAudio = null;
@@ -124,10 +145,10 @@ document.addEventListener("DOMContentLoaded", () => {
                         input.value = (input.value + " " + data.text).trim();
                         input.focus();
                     } else {
-                        console.error("Transcription error:", data.error);
+                        showToast("Transcription failed", "error");
                     }
                 } catch (err) {
-                    console.error("Transcribe request failed:", err);
+                    showToast("Transcribe request failed", "error");
                 }
             };
 
@@ -136,7 +157,7 @@ document.addEventListener("DOMContentLoaded", () => {
             micBtn.classList.add("recording");
         } catch (err) {
             console.error("Microphone access denied:", err);
-            alert("Microphone access denied. Please allow in browser settings.");
+            showToast("Microphone access denied", "error");
         }
     }
 
@@ -297,7 +318,13 @@ document.addEventListener("DOMContentLoaded", () => {
             chatList.innerHTML = "";
 
             if (!data.chats || data.chats.length === 0) {
-                chatList.innerHTML = '<p class="empty-hint">No chats yet</p>';
+                chatList.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">💬</div>
+                        <h3>No chats yet</h3>
+                        <p>Click "New Chat" to start your first conversation</p>
+                    </div>
+                `;
                 return;
             }
 
@@ -319,16 +346,25 @@ document.addEventListener("DOMContentLoaded", () => {
                 const delBtn = item.querySelector(".delete-chat-btn");
                 delBtn.addEventListener("click", async (e) => {
                     e.stopPropagation();
-                    if (!confirm("Delete this chat?")) return;
+                    
+                    const confirmed = await confirmModal(
+                        "Delete Chat",
+                        `Are you sure you want to delete "${chat.title}"?`,
+                        "Delete"
+                    );
+                    
+                    if (!confirmed) return;
 
                     try {
                         await fetch(`/chats/${chat.id}`, { method: "DELETE" });
+                        showToast("Chat deleted", "success");
                         if (chat.id === currentChatId) {
                             currentChatId = null;
                             resetMessages();
                         }
                         loadChats();
                     } catch (err) {
+                        showToast("Failed to delete chat", "error");
                         console.error("Delete failed:", err);
                     }
                 });
@@ -391,6 +427,7 @@ document.addEventListener("DOMContentLoaded", () => {
             currentChatId = data.id;
             resetMessages();
             await loadChats();
+            showToast("New chat created", "success");
 
             if (window.innerWidth <= 768) {
                 sidebar.classList.remove("open");
@@ -398,6 +435,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             input.focus();
         } catch (err) {
+            showToast("Failed to create chat", "error");
             console.error("Failed to create chat:", err);
         }
     });
@@ -408,7 +446,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!file) return;
 
         if (file.size > 5 * 1024 * 1024) {
-            alert("Image too large. Max 5 MB.");
+            showToast("Image too large. Max 5 MB.", "warning");
             imageInput.value = "";
             return;
         }
@@ -440,7 +478,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!file) return;
 
             if (file.size > 10 * 1024 * 1024) {
-                alert("PDF too large. Max 10 MB.");
+                showToast("PDF too large. Max 10 MB.", "warning");
                 pdfInput.value = "";
                 return;
             }
@@ -475,6 +513,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         input.value = "";
         input.disabled = true;
+        setButtonLoading(sendBtn, true);
 
         const aiDiv = document.createElement("div");
         aiDiv.className = "message ai-message";
@@ -515,11 +554,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 } else {
                     aiContent.innerHTML = `<div style="color: #e74c3c;">PDF error: ${uploadData.error}</div>`;
                     input.disabled = false;
+                    setButtonLoading(sendBtn, false);
                     return;
                 }
             } catch (err) {
                 aiContent.innerHTML = `<div style="color: #e74c3c;">PDF upload failed</div>`;
                 input.disabled = false;
+                setButtonLoading(sendBtn, false);
                 return;
             }
 
@@ -550,12 +591,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 let errorMsg = data.error || `HTTP ${response.status}`;
 
                 if (response.status === 429) {
-                    errorMsg = "⏳ Too many requests. Please wait a moment.";
+                    showToast("Too many requests. Please slow down.", "warning");
                 } else if (response.status === 403) {
-                    errorMsg = "🚫 Forbidden. You don't have access.";
+                    showToast("You don't have access", "error");
                 } else if (response.status === 401) {
-                    errorMsg = "🔒 Please log in again.";
+                    showToast("Please log in again", "error");
                     setTimeout(() => window.location.href = "/login", 1500);
+                } else {
+                    showToast(errorMsg, "error");
                 }
 
                 aiContent.innerHTML = `<div style="color: #e74c3c;">${errorMsg}</div>`;
@@ -632,9 +675,11 @@ document.addEventListener("DOMContentLoaded", () => {
             await loadChats();
         } catch (err) {
             aiContent.textContent = "Connection error. Try again.";
+            showToast("Connection error", "error");
         } finally {
             input.disabled = false;
             input.focus();
+            setButtonLoading(sendBtn, false);
         }
     });
 
@@ -648,7 +693,9 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             await fetch(`/history/${currentChatId}`, { method: "DELETE" });
             resetMessages();
+            showToast("Chat cleared", "success");
         } catch (err) {
+            showToast("Failed to clear chat", "error");
             console.error("Clear failed:", err);
         }
     });
@@ -743,17 +790,30 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // ===== Sidebar toggle (mobile) =====
+    // ===== Sidebar toggle (mobile) =====
     if (menuToggle && sidebar) {
-        menuToggle.addEventListener("click", () => {
+        menuToggle.addEventListener("click", (e) => {
+            e.stopPropagation();
             sidebar.classList.toggle("open");
         });
 
+        // Close sidebar when chat is opened
+        // (already done in openChat function)
+
+        // Close on outside click
         document.addEventListener("click", (e) => {
             if (
                 sidebar.classList.contains("open") &&
                 !sidebar.contains(e.target) &&
                 !menuToggle.contains(e.target)
             ) {
+                sidebar.classList.remove("open");
+            }
+        });
+
+        // Close on ESC key
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape" && sidebar.classList.contains("open")) {
                 sidebar.classList.remove("open");
             }
         });

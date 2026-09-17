@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 
-    <!-- Marked.js -->
+    <!-- Marked.js for Markdown rendering -->
     <script src="{{ url_for('static', filename='js/marked.min.js') }}"></script>
 
     <!-- Highlight.js -->
@@ -18,69 +18,69 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/highlight-dark.css') }}" id="hljs-dark" disabled>
     <script src="{{ url_for('static', filename='js/highlight.min.js') }}"></script>
 
-    <!-- Theme -->
+    <!-- Theme (early load — prevents flash) -->
     <script>
         (function() {
             const theme = localStorage.getItem("theme") || "light";
             document.documentElement.setAttribute("data-theme", theme);
         })();
     </script>
-    <script src="{{ url_for('static', filename='js/theme.js') }}" defer></script>
 
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
-
 <body>
     <!-- Background video -->
     <video class="bg-video" autoplay muted loop playsinline>
         <source src="{{ url_for('static', filename='videos/background.mp4') }}" type="video/mp4">
     </video>
 
-<header class="header">
-    <div class="header-left">
-        <a href="/" class="logo">
-            <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo" class="logo-icon">
-            <span class="logo-text">Flask AI Chat</span>
-        </a>
-    </div>
-    <div class="header-right">
-        <button class="theme-toggle" id="theme-toggle" title="Toggle theme">🌙</button>
-        <div class="user-menu" id="user-menu">
-            <span class="user-name" id="user-name">...</span>
-            <button class="logout-btn" id="logout-btn">Logout</button>
+    <header class="header">
+        <div class="header-left">
+            <a href="/" class="logo">
+                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo" class="logo-icon">
+                <span class="logo-text">Flask AI Chat</span>
+            </a>
         </div>
-    </div>
-</header>
+        <div class="header-right">
+            <button class="theme-toggle" id="theme-toggle" title="Toggle theme">🌙</button>
+            <div class="user-menu" id="user-menu">
+                <span class="user-name" id="user-name">...</span>
+                <button class="logout-btn" id="logout-btn">Logout</button>
+            </div>
+        </div>
+    </header>
 
     <main class="container">
         {% block content %}{% endblock %}
     </main>
 
-
-
     {% block scripts %}{% endblock %}
 
+    <!-- UI Helpers (toasts, modals) -->
+    <script src="{{ url_for('static', filename='js/ui.js') }}"></script>
+
+    <!-- Theme toggle -->
+    <script src="{{ url_for('static', filename='js/theme.js') }}" defer></script>
+
+    <!-- User menu + Logout -->
     <script>
     document.addEventListener("DOMContentLoaded", async () => {
         const userNameEl = document.getElementById("user-name");
         const logoutBtn = document.getElementById("logout-btn");
         const userMenu = document.getElementById("user-menu");
 
-        // Get current user
         try {
             const res = await fetch("/me");
             const data = await res.json();
             if (data.user) {
                 userNameEl.textContent = data.user.username;
             } else {
-                // Hide user menu if not logged in
                 if (userMenu) userMenu.style.display = "none";
             }
         } catch (err) {
             console.error("Failed to fetch user:", err);
         }
 
-        // Logout
         if (logoutBtn) {
             logoutBtn.addEventListener("click", async () => {
                 try {
@@ -93,5 +93,24 @@
         }
     });
     </script>
+
+    <!-- Toast container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Confirm modal -->
+    <div id="confirm-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title">Confirm</h3>
+            </div>
+            <div class="modal-body">
+                <p id="modal-message">Are you sure?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="modal-btn modal-btn-cancel" id="modal-cancel">Cancel</button>
+                <button type="button" class="modal-btn modal-btn-confirm" id="modal-confirm">Confirm</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
