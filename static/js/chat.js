@@ -8,6 +8,64 @@ document.addEventListener("DOMContentLoaded", () => {
     const menuToggle = document.getElementById("menu-toggle");
     const sidebar = document.getElementById("sidebar");
 
+    // ===== Text-to-Speech (TTS) with gTTS =====
+    let currentAudio = null;
+    let speakingBtn = null;
+
+    async function speakText(text, btn) {
+        // If already playing, stop
+        if (currentAudio && !currentAudio.paused) {
+            currentAudio.pause();
+            currentAudio.currentTime = 0;
+            if (speakingBtn) {
+                speakingBtn.classList.remove("speaking");
+                if (speakingBtn === btn) {
+                    speakingBtn = null;
+                    return;
+                }
+                speakingBtn = null;
+            }
+        }
+
+        btn.classList.add("speaking");
+        speakingBtn = btn;
+
+        try {
+            const response = await fetch("/speak", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text: text })
+            });
+
+            if (!response.ok) {
+                throw new Error("TTS request failed");
+            }
+
+            const audioBlob = await response.blob();
+            const audioUrl = URL.createObjectURL(audioBlob);
+
+            currentAudio = new Audio(audioUrl);
+
+            currentAudio.onended = () => {
+                btn.classList.remove("speaking");
+                if (speakingBtn === btn) speakingBtn = null;
+                URL.revokeObjectURL(audioUrl);
+            };
+
+            currentAudio.onerror = () => {
+                btn.classList.remove("speaking");
+                if (speakingBtn === btn) speakingBtn = null;
+                URL.revokeObjectURL(audioUrl);
+            };
+
+            await currentAudio.play();
+        } catch (err) {
+            console.error("TTS failed:", err);
+            btn.classList.remove("speaking");
+            if (speakingBtn === btn) speakingBtn = null;
+        }
+    }
+
     // Image elements
     const imageInput = document.getElementById("image-input");
     const imagePreview = document.getElementById("image-preview");
@@ -328,7 +386,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const text = input.value.trim();
         if (!text && !currentImageBase64 && !currentPdfFile) return;
 
-        // User message
         const imageUrl = currentImageBase64
             ? `data:${currentImageType};base64,${currentImageBase64}`
             : null;
@@ -337,7 +394,6 @@ document.addEventListener("DOMContentLoaded", () => {
         input.value = "";
         input.disabled = true;
 
-        // Typing indicator
         const aiDiv = document.createElement("div");
         aiDiv.className = "message ai-message";
         const aiContent = document.createElement("div");
@@ -350,9 +406,7 @@ document.addEventListener("DOMContentLoaded", () => {
         aiDiv.appendChild(aiContent);
         messages.appendChild(aiDiv);
         messages.scrollTop = messages.scrollHeight;
-        
-        // (PDF already handled above)
-        // Clear image preview (save sent values)
+
         const sentImageBase64 = currentImageBase64;
         const sentImageType = currentImageType;
         currentImageBase64 = null;
@@ -361,7 +415,6 @@ document.addEventListener("DOMContentLoaded", () => {
         imagePreview.style.display = "none";
         previewImg.src = "";
 
-        // ===== PDF handling =====
         let pdfText = "";
         if (currentPdfFile) {
             try {
@@ -388,7 +441,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
-            // Clear PDF after sending
             currentPdfFile = null;
             currentPdfName = "";
             pdfInput.value = "";
@@ -408,7 +460,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     image_type: sentImageType,
                     model: currentModel,
                     pdf_text: pdfText
-                
                 })
             });
 
@@ -440,23 +491,34 @@ document.addEventListener("DOMContentLoaded", () => {
                 addCopyButtons(aiContent);
             }
 
-            // Final pass
             addCopyButtons(aiContent);
 
-            // Full message copy button
+            // Add full-message actions
             if (aiContent.textContent.trim()) {
                 const aiMsgDiv = aiContent.closest(".message");
                 if (aiMsgDiv && !aiMsgDiv.querySelector(".copy-message-btn")) {
                     const msgActions = document.createElement("div");
                     msgActions.className = "message-actions";
 
+                    const capturedText = aiContent.textContent;
+
+                    // Speak button
+                    const speakBtn = document.createElement("button");
+                    speakBtn.className = "speak-btn";
+                    speakBtn.type = "button";
+                    speakBtn.textContent = "Speak";
+                    speakBtn.title = "Read aloud";
+                    speakBtn.addEventListener("click", (e) => {
+                        e.stopPropagation();
+                        speakText(capturedText, speakBtn);
+                    });
+                    msgActions.appendChild(speakBtn);
+
+                    // Copy button
                     const fullCopyBtn = document.createElement("button");
                     fullCopyBtn.className = "copy-message-btn";
                     fullCopyBtn.type = "button";
                     fullCopyBtn.textContent = "Copy";
-
-                    const capturedText = aiContent.textContent;
-
                     fullCopyBtn.addEventListener("click", async (e) => {
                         e.stopPropagation();
                         try {
@@ -471,8 +533,8 @@ document.addEventListener("DOMContentLoaded", () => {
                             console.error("Copy failed:", err);
                         }
                     });
-
                     msgActions.appendChild(fullCopyBtn);
+
                     aiMsgDiv.appendChild(msgActions);
                 }
             }
@@ -539,16 +601,28 @@ document.addEventListener("DOMContentLoaded", () => {
         div.appendChild(content);
         div.appendChild(timestamp);
 
-        // Full message copy button (AI only)
+        // Full-message actions (AI only)
         if (sender === "ai" && text) {
             const msgActions = document.createElement("div");
             msgActions.className = "message-actions";
 
+            // Speak button
+            const speakBtn = document.createElement("button");
+            speakBtn.className = "speak-btn";
+            speakBtn.type = "button";
+            speakBtn.textContent = "Speak";
+            speakBtn.title = "Read aloud";
+            speakBtn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                speakText(text, speakBtn);
+            });
+            msgActions.appendChild(speakBtn);
+
+            // Copy button
             const fullCopyBtn = document.createElement("button");
             fullCopyBtn.className = "copy-message-btn";
             fullCopyBtn.type = "button";
             fullCopyBtn.textContent = "Copy";
-
             fullCopyBtn.addEventListener("click", async (e) => {
                 e.stopPropagation();
                 try {
@@ -563,8 +637,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     console.error("Copy failed:", err);
                 }
             });
-
             msgActions.appendChild(fullCopyBtn);
+
             div.appendChild(msgActions);
         }
 
@@ -581,7 +655,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return div.innerHTML;
     }
 
-    // ===== Sidebar toggle =====
+    // ===== Sidebar toggle (mobile) =====
     if (menuToggle && sidebar) {
         menuToggle.addEventListener("click", () => {
             sidebar.classList.toggle("open");

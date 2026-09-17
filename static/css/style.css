@@ -1324,3 +1324,57 @@ body {
     height: 20px;
     font-size: 0.9rem;
 }
+
+
+/* ===== Text-to-Speech (TTS) button ===== */
+.speak-btn {
+    background: transparent;
+    border: 1px solid var(--border-glass);
+    color: var(--text-secondary);
+    padding: 0.25rem 0.6rem;
+    border-radius: 6px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.speak-btn::before {
+    content: "🔊";
+    font-size: 0.75rem;
+}
+
+.speak-btn:hover {
+    background: rgba(102, 126, 234, 0.15);
+    border-color: var(--accent-1);
+    color: var(--accent-1);
+}
+
+.speak-btn.speaking {
+    background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+    border-color: var(--accent-1);
+    color: white;
+    animation: pulse 1.5s infinite;
+}
+
+.speak-btn.speaking::before {
+    content: "⏸";
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+[data-theme="dark"] .speak-btn {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+[data-theme="dark"] .speak-btn:hover {
+    color: var(--accent-3);
+    border-color: var(--accent-3);
+}

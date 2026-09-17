@@ -1,15 +1,17 @@
 import os
 import io
 import json
+import re
 from pathlib import Path
 from functools import wraps
 from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, send_file
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from groq import Groq
 import pdfplumber
+from gtts import gTTS
 
 ENV_PATH = Path(__file__).resolve().parent / ".env"
 load_dotenv(dotenv_path=ENV_PATH)
@@ -256,6 +258,45 @@ def upload_pdf():
         return jsonify({"text": text})
     except Exception as e:
         return jsonify({"error": f"PDF error: {str(e)}"}), 500
+
+
+# ===== Text-to-Speech Route =====
+
+@app.route("/speak", methods=["POST"])
+@login_required
+def speak():
+    data = request.get_json()
+    text = data.get("text", "").strip()
+
+    if not text:
+        return jsonify({"error": "No text provided"}), 400
+
+    # Clean markdown
+    clean_text = re.sub(r'```[\s\S]*?```', '', text)  # Remove code blocks
+    clean_text = re.sub(r'[#*`_~]', '', clean_text)   # Remove markdown symbols
+    clean_text = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', clean_text)  # Links → text
+    clean_text = re.sub(r'\n+', ' ', clean_text).strip()
+
+    if not clean_text:
+        return jsonify({"error": "No text to speak"}), 400
+
+    # Detect language
+    has_turkish = bool(re.search(r'[ğüşıöçĞÜŞİÖÇ]', clean_text))
+    lang = "tr" if has_turkish else "en"
+
+    try:
+        tts = gTTS(text=clean_text, lang=lang, slow=False)
+        audio_buffer = io.BytesIO()
+        tts.write_to_fp(audio_buffer)
+        audio_buffer.seek(0)
+
+        return send_file(
+            audio_buffer,
+            mimetype="audio/mpeg",
+            as_attachment=False
+        )
+    except Exception as e:
+        return jsonify({"error": f"TTS error: {str(e)}"}), 500
 
 
 # ===== Main Routes =====

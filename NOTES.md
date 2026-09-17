@@ -737,6 +737,69 @@ I'm doing the simplest version: extract all text, truncate, send.
 - Foundation for future RAG
 - Project feels more "professional"
 
+
+## Day 18 — Professional TTS with gTTS
+
+### What I built
+- 🔊 Speak button on every AI message
+- Replaced Web Speech API with Google gTTS
+- Backend `/speak` endpoint generates MP3
+- Frontend plays audio with `Audio` object
+- Auto language detection (Turkish/English)
+- Markdown cleanup before speaking
+- Toggle (play/stop with same button)
+- Pulse animation while speaking
+
+### What I learned
+- `gTTS` (Google Text-to-Speech) library
+- `gTTS(text=..., lang="tr"|"en", slow=False)`
+- `tts.write_to_fp(audio_buffer)` → MP3 bytes
+- `io.BytesIO()` for in-memory file
+- `send_file()` to return audio
+- `mimetype="audio/mpeg"` for MP3
+- `URL.createObjectURL(audioBlob)` in frontend
+- `new Audio(url).play()` for playback
+- `URL.revokeObjectURL()` for cleanup
+- Regex to clean markdown before speaking
+
+### Comparison: Web Speech API vs gTTS
+| Feature | Web Speech | gTTS |
+|---------|-----------|------|
+| Quality | Robotic | Google quality |
+| Speed | Instant | 1-2 sec (network) |
+| Languages | Limited | 60+ |
+| Turkish | OK | Excellent |
+| Free | Yes | Yes |
+| API key | No | No |
+| Offline | Yes | No |
+
+### Django comparison
+| Flask | Django |
+|-------|--------|
+| `send_file()` | `FileResponse()` |
+| Same gTTS library | Same |
+| Same frontend code | Same |
+
+### Where I needed help
+- Why Web Speech sounded robotic
+- Switching from browser API to backend TTS
+- `BytesIO` for in-memory MP3
+- `URL.createObjectURL()` for blob URLs
+- Cleanup with `URL.revokeObjectURL()`
+
+### Honest note
+**gTTS is a game-changer.** Google's voice quality is lightyears ahead of browser's Web Speech. This is the same tech behind Google Translate's audio.
+
+Trade-off: needs internet (1-2 second delay). But quality is worth it.
+
+Real-world use: audiobook apps, accessibility tools, podcasts, voice assistants.
+
+### Impact
+- Professional voice quality
+- Auto language detection
+- Much better UX for long responses
+- Feels like a real product (not a demo)
+
 ## Port Note
 On macOS, AirPlay uses port 5000. Flask runs on 5001.
 URL: `http://127.0.0.1:5001`
