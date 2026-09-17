@@ -1,0 +1,8 @@
+{
+    "python.defaultInterpreterPath": "/Users/ramazankarahan/Desktop/flask-ai-chat/venv/bin/python",
+    "python.terminal.activateEnvironment": true,
+    "python.analysis.extraPaths": [
+        "/Users/ramazankarahan/Desktop/flask-ai-chat/venv/lib/python3.13/site-packages"
+    ]
+}
+

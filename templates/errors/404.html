@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}404 — Not Found{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card" style="text-align: center;">
+        <h1 style="font-size: 4rem; margin-bottom: 1rem;">404</h1>
+        <p style="color: rgba(255,255,255,0.8); margin-bottom: 2rem;">
+            Page not found
+        </p>
+        <a href="/" style="
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            text-decoration: none;
+            border-radius: 12px;
+            font-weight: 600;
+        ">Go Home</a>
+    </div>
+</div>
+{% endblock %}

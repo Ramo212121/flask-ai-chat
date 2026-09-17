@@ -26,9 +26,7 @@
                 <select class="model-select" id="model-select" title="Select model">
                     <option value="openai/gpt-oss-120b">GPT-OSS 120B</option>
                     <option value="openai/gpt-oss-20b">GPT-OSS 20B (fast)</option>
-                    <option value="meta-llama/llama-4-scout-17b-16e-instruct">Llama 4 Scout (vision)</option>
-                    <option value="meta-llama/llama-4-maverick-17b-128e-instruct">Llama 4 Maverick (vision)</option>
-                </select>
+                    <option value="qwen/qwen3.8-27b">Qwen 3.8 27B (vision)</option>                </select>
                 <button type="button" id="clear-btn" class="clear-button">Clear</button>
             </div>
         </div>
@@ -61,7 +59,7 @@
 
                 <label for="pdf-input" class="attach-btn" title="Attach PDF">📄</label>
                 <input type="file" id="pdf-input" accept=".pdf" style="display: none;">
-
+                <button type="button" class="mic-btn" id="mic-btn" title="Hold to record">🎤</button>
                 <button type="button" class="emoji-btn" id="emoji-btn" title="Emoji">😀</button>
                 <div class="emoji-picker" id="emoji-picker">
                     <div class="emoji-picker-header">

@@ -13,7 +13,6 @@ document.addEventListener("DOMContentLoaded", () => {
     let speakingBtn = null;
 
     async function speakText(text, btn) {
-        // If already playing, stop
         if (currentAudio && !currentAudio.paused) {
             currentAudio.pause();
             currentAudio.currentTime = 0;
@@ -64,6 +63,89 @@ document.addEventListener("DOMContentLoaded", () => {
             btn.classList.remove("speaking");
             if (speakingBtn === btn) speakingBtn = null;
         }
+    }
+
+    // ===== Microphone (Speech-to-Text) =====
+    const micBtn = document.getElementById("mic-btn");
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let isRecording = false;
+
+    if (micBtn) {
+        micBtn.addEventListener("mousedown", startRecording);
+        micBtn.addEventListener("touchstart", (e) => {
+            e.preventDefault();
+            startRecording();
+        });
+
+        micBtn.addEventListener("mouseup", stopRecording);
+        micBtn.addEventListener("mouseleave", stopRecording);
+        micBtn.addEventListener("touchend", (e) => {
+            e.preventDefault();
+            stopRecording();
+        });
+    }
+
+    async function startRecording() {
+        if (isRecording) return;
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            audioChunks = [];
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    audioChunks.push(event.data);
+                }
+            };
+
+            mediaRecorder.onstop = async () => {
+                stream.getTracks().forEach(track => track.stop());
+
+                if (audioChunks.length === 0) {
+                    return;
+                }
+
+                const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+
+                try {
+                    const formData = new FormData();
+                    formData.append("audio", audioBlob, "recording.webm");
+
+                    const res = await fetch("/transcribe", {
+                        method: "POST",
+                        body: formData
+                    });
+
+                    const data = await res.json();
+
+                    if (res.ok && data.text) {
+                        input.value = (input.value + " " + data.text).trim();
+                        input.focus();
+                    } else {
+                        console.error("Transcription error:", data.error);
+                    }
+                } catch (err) {
+                    console.error("Transcribe request failed:", err);
+                }
+            };
+
+            mediaRecorder.start();
+            isRecording = true;
+            micBtn.classList.add("recording");
+        } catch (err) {
+            console.error("Microphone access denied:", err);
+            alert("Microphone access denied. Please allow in browser settings.");
+        }
+    }
+
+    function stopRecording() {
+        if (!isRecording || !mediaRecorder) return;
+
+        mediaRecorder.stop();
+        isRecording = false;
+        micBtn.classList.remove("recording");
     }
 
     // Image elements
@@ -465,7 +547,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (!response.ok) {
                 const data = await response.json();
-                aiContent.textContent = `Error: ${data.error}`;
+                let errorMsg = data.error || `HTTP ${response.status}`;
+
+                if (response.status === 429) {
+                    errorMsg = "⏳ Too many requests. Please wait a moment.";
+                } else if (response.status === 403) {
+                    errorMsg = "🚫 Forbidden. You don't have access.";
+                } else if (response.status === 401) {
+                    errorMsg = "🔒 Please log in again.";
+                    setTimeout(() => window.location.href = "/login", 1500);
+                }
+
+                aiContent.innerHTML = `<div style="color: #e74c3c;">${errorMsg}</div>`;
                 return;
             }
 
@@ -493,7 +586,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
             addCopyButtons(aiContent);
 
-            // Add full-message actions
             if (aiContent.textContent.trim()) {
                 const aiMsgDiv = aiContent.closest(".message");
                 if (aiMsgDiv && !aiMsgDiv.querySelector(".copy-message-btn")) {
@@ -502,7 +594,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
                     const capturedText = aiContent.textContent;
 
-                    // Speak button
                     const speakBtn = document.createElement("button");
                     speakBtn.className = "speak-btn";
                     speakBtn.type = "button";
@@ -514,7 +605,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     });
                     msgActions.appendChild(speakBtn);
 
-                    // Copy button
                     const fullCopyBtn = document.createElement("button");
                     fullCopyBtn.className = "copy-message-btn";
                     fullCopyBtn.type = "button";
@@ -601,12 +691,10 @@ document.addEventListener("DOMContentLoaded", () => {
         div.appendChild(content);
         div.appendChild(timestamp);
 
-        // Full-message actions (AI only)
         if (sender === "ai" && text) {
             const msgActions = document.createElement("div");
             msgActions.className = "message-actions";
 
-            // Speak button
             const speakBtn = document.createElement("button");
             speakBtn.className = "speak-btn";
             speakBtn.type = "button";
@@ -618,7 +706,6 @@ document.addEventListener("DOMContentLoaded", () => {
             });
             msgActions.appendChild(speakBtn);
 
-            // Copy button
             const fullCopyBtn = document.createElement("button");
             fullCopyBtn.className = "copy-message-btn";
             fullCopyBtn.type = "button";

@@ -8,6 +8,8 @@ from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, send_file
 from flask_sqlalchemy import SQLAlchemy
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from werkzeug.security import generate_password_hash, check_password_hash
 from groq import Groq
 import pdfplumber
@@ -26,8 +28,27 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
 
+# Rate limiting
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://",
+)
+
 # Groq client
 groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+
+
+# ===== Security Headers =====
+
+@app.after_request
+def add_security_headers(response):
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
 
 
 # ===== Auth Decorator =====
@@ -148,6 +169,7 @@ def execute_tool(tool_name, arguments):
 # ===== Auth Routes =====
 
 @app.route("/register", methods=["GET", "POST"])
+@limiter.limit("3 per minute")
 def register_page():
     if request.method == "POST":
         data = request.get_json()
@@ -187,6 +209,7 @@ def register_page():
 
 
 @app.route("/login", methods=["GET", "POST"])
+@limiter.limit("5 per minute")
 def login_page():
     if request.method == "POST":
         data = request.get_json()
@@ -232,6 +255,7 @@ def me():
 
 @app.route("/upload-pdf", methods=["POST"])
 @login_required
+@limiter.limit("10 per minute")
 def upload_pdf():
     if "pdf" not in request.files:
         return jsonify({"error": "No PDF file"}), 400
@@ -248,7 +272,6 @@ def upload_pdf():
                 if page_text:
                     text += page_text + "\n\n"
 
-        # Limit size
         if len(text) > 20000:
             text = text[:20000] + "\n\n[... text truncated ...]"
 
@@ -264,6 +287,7 @@ def upload_pdf():
 
 @app.route("/speak", methods=["POST"])
 @login_required
+@limiter.limit("15 per minute")
 def speak():
     data = request.get_json()
     text = data.get("text", "").strip()
@@ -272,15 +296,14 @@ def speak():
         return jsonify({"error": "No text provided"}), 400
 
     # Clean markdown
-    clean_text = re.sub(r'```[\s\S]*?```', '', text)  # Remove code blocks
-    clean_text = re.sub(r'[#*`_~]', '', clean_text)   # Remove markdown symbols
-    clean_text = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', clean_text)  # Links → text
+    clean_text = re.sub(r'```[\s\S]*?```', '', text)
+    clean_text = re.sub(r'[#*`_~]', '', clean_text)
+    clean_text = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', clean_text)
     clean_text = re.sub(r'\n+', ' ', clean_text).strip()
 
     if not clean_text:
         return jsonify({"error": "No text to speak"}), 400
 
-    # Detect language
     has_turkish = bool(re.search(r'[ğüşıöçĞÜŞİÖÇ]', clean_text))
     lang = "tr" if has_turkish else "en"
 
@@ -299,6 +322,34 @@ def speak():
         return jsonify({"error": f"TTS error: {str(e)}"}), 500
 
 
+# ===== Speech-to-Text Route =====
+
+@app.route("/transcribe", methods=["POST"])
+@login_required
+@limiter.limit("10 per minute")
+def transcribe():
+    if "audio" not in request.files:
+        return jsonify({"error": "No audio file"}), 400
+
+    audio_file = request.files["audio"]
+
+    if audio_file.filename == "":
+        return jsonify({"error": "Empty filename"}), 400
+
+    try:
+        transcription = groq_client.audio.transcriptions.create(
+            file=(audio_file.filename, audio_file.read()),
+            model="whisper-large-v3-turbo",
+            response_format="text",
+        )
+
+        text = transcription.strip() if isinstance(transcription, str) else transcription.text.strip()
+
+        return jsonify({"text": text})
+    except Exception as e:
+        return jsonify({"error": f"Transcription error: {str(e)}"}), 500
+
+
 # ===== Main Routes =====
 
 @app.route("/")
@@ -309,6 +360,7 @@ def index():
 
 @app.route("/chat", methods=["POST"])
 @login_required
+@limiter.limit("20 per minute")
 def chat():
     data = request.get_json()
     message = data.get("message", "").strip()
@@ -321,8 +373,14 @@ def chat():
     if not message and not image_base64 and not pdf_text:
         return jsonify({"error": "Message, image, or PDF required"}), 400
 
+    # Stronger validation
     if len(message) > 1000:
-        return jsonify({"error": "Message cannot exceed 1000 characters"}), 400
+        return jsonify({"error": "Message too long (max 1000 chars)"}), 400
+
+    if any(ord(c) < 32 and c not in "\n\t\r" for c in message):
+        return jsonify({"error": "Invalid characters in message"}), 400
+
+    message = message.replace("\x00", "").strip()
 
     # Get or create chat
     if chat_id:
@@ -356,37 +414,35 @@ def chat():
     db.session.add(user_msg)
     db.session.commit()
 
-    # Build history from DB (skip placeholders)
+    # Build history from DB
     history = [
         {"role": m.role, "content": m.content}
         for m in chat.messages
         if not m.content.startswith("[Image]") and not m.content.startswith("[PDF]")
     ]
 
-    # ===== MODEL SELECTION =====
+    # Model selection
     requested_model = data.get("model", "openai/gpt-oss-120b")
 
     ALLOWED_MODELS = [
         "openai/gpt-oss-120b",
         "openai/gpt-oss-20b",
-        "meta-llama/llama-4-scout-17b-16e-instruct",
-        "meta-llama/llama-4-maverick-17b-128e-instruct",
+        "qwen/qwen3.8-27b",   # ← DOĞRU
     ]
 
     if requested_model not in ALLOWED_MODELS:
         requested_model = "openai/gpt-oss-120b"
 
-    # ===== BUILD USER MESSAGE =====
+    # Build user message
     if pdf_text:
         combined_message = (
             f"Here is the content of a PDF document:\n\n{pdf_text}\n\n"
             f"---\n\nUser question: {message if message else 'Please summarize this document.'}"
         )
         user_message = {"role": "user", "content": combined_message}
-
     elif image_base64 and image_type:
-        if "llama-4" not in requested_model:
-            requested_model = "meta-llama/llama-4-scout-17b-16e-instruct"
+        if "qwen" not in requested_model:
+            requested_model = "qwen/qwen3.8-27b" 
 
         user_message = {
             "role": "user",
@@ -400,16 +456,13 @@ def chat():
                 }
             ]
         }
-
     else:
         user_message = {"role": "user", "content": message}
 
     model = requested_model
 
-    # Replace the last user message with the new one
     api_messages = history[:-1] + [user_message] if history else [user_message]
 
-    # ===== SYSTEM PROMPT =====
     system_prompt = {
         "role": "system",
         "content": (
@@ -555,6 +608,50 @@ def clear_history(chat_id):
     Message.query.filter_by(chat_id=chat_id).delete()
     db.session.commit()
     return jsonify({"status": "cleared"})
+
+
+# ===== Error Handlers =====
+
+@app.errorhandler(400)
+def bad_request(e):
+    if request.is_json:
+        return jsonify({"error": "Bad request"}), 400
+    return render_template("errors/400.html"), 400
+
+
+@app.errorhandler(401)
+def unauthorized(e):
+    if request.is_json:
+        return jsonify({"error": "Unauthorized"}), 401
+    return redirect(url_for("login_page"))
+
+
+@app.errorhandler(403)
+def forbidden(e):
+    if request.is_json:
+        return jsonify({"error": "Forbidden"}), 403
+    return render_template("errors/403.html"), 403
+
+
+@app.errorhandler(404)
+def not_found(e):
+    if request.is_json:
+        return jsonify({"error": "Not found"}), 404
+    return render_template("errors/404.html"), 404
+
+
+@app.errorhandler(429)
+def rate_limit_exceeded(e):
+    if request.is_json:
+        return jsonify({"error": "Too many requests. Please slow down."}), 429
+    return render_template("errors/429.html"), 429
+
+
+@app.errorhandler(500)
+def server_error(e):
+    if request.is_json:
+        return jsonify({"error": "Server error"}), 500
+    return render_template("errors/500.html"), 500
 
 
 # ===== Init DB =====

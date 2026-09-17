@@ -800,6 +800,136 @@ Real-world use: audiobook apps, accessibility tools, podcasts, voice assistants.
 - Much better UX for long responses
 - Feels like a real product (not a demo)
 
+
+
+## Day 19 — Speech-to-Text (STT) with Groq Whisper
+
+### What I built
+- 🎤 microphone button next to attach buttons
+- Press-and-hold to record
+- Release to transcribe via Groq Whisper
+- Auto-fill input with transcribed text
+- Recording state (red pulsing button)
+- Microphone permission handling
+
+### What I learned
+- `navigator.mediaDevices.getUserMedia({ audio: true })`
+- `MediaRecorder` API for audio recording
+- `mediaRecorder.ondataavailable` — collect chunks
+- `mediaRecorder.onstop` — finalize
+- `new Blob(chunks, { type: "audio/webm" })`
+- `FormData` for file uploads
+- `mousedown` / `mouseup` for press-and-hold UX
+- `touchstart` / `touchend` for mobile
+- Groq Whisper: `groq_client.audio.transcriptions.create()`
+- `model="whisper-large-v3-turbo"`
+- Stopping mic tracks: `stream.getTracks().forEach(t => t.stop())`
+
+### Django comparison
+| Flask | Django |
+|-------|--------|
+| `request.files["audio"]` | `request.FILES["audio"]` |
+| Same Groq SDK | Same Groq SDK |
+| Same frontend | Same frontend |
+
+### Where I needed help
+- Understanding `MediaRecorder` API
+- Press-and-hold vs click UX
+- `mousedown`/`mouseup` vs `click`
+- Blob construction from chunks
+- Sending Blob via FormData
+- Stopping microphone tracks (privacy)
+- Browser permission flow
+
+### Honest note
+STT completes the **voice loop**:
+- **Day 18:** AI speaks (TTS)
+- **Day 19:** User speaks (STT)
+
+Now the app has **both directions** of voice interaction. That's a **real product** feature.
+
+Walkie-talkie UX (press-and-hold) is intuitive — like WhatsApp voice messages.
+
+Privacy note: Always stop tracks after recording. Some browsers show mic indicator until stopped.
+
+### Impact
+- User can speak instead of type
+- Auto-transcription with Whisper (excellent quality)
+- Mobile-friendly (touch events)
+- Voice loop complete (TTS + STT)
+- Accessible (voice input for all users)
+
+
+## Day 20 — Security & Error Handling
+
+### What I built
+- Rate limiting with Flask-Limiter
+- Per-endpoint limits (chat: 20/min, speak: 15/min, transcribe: 10/min)
+- Login/register limits (5/min, 3/min)
+- Global error handlers (400, 401, 403, 404, 429, 500)
+- Custom error pages (HTML for browsers, JSON for API)
+- Security headers (X-Frame-Options, X-Content-Type-Options, X-XSS-Protection)
+- Stronger input validation (null bytes, control chars)
+- User-friendly error messages in frontend
+
+### What I learned
+- `Flask-Limiter` with `get_remote_address` (per-IP limits)
+- `@limiter.limit("20 per minute")` decorator
+- `default_limits` for global limits
+- `@app.errorhandler(404)` for custom errors
+- `request.is_json` to detect API calls
+- `@app.after_request` for response headers
+- Security headers: X-Frame-Options, X-Content-Type-Options, X-XSS-Protection
+- Null byte injection prevention
+- Status code 429 (Too Many Requests)
+
+### Django comparison
+| Flask | Django |
+|-------|--------|
+| `Flask-Limiter` (3rd party) | `django-ratelimit` (3rd party) |
+| `@app.errorhandler()` | `handler404`, `handler500` |
+| `after_request` | Middleware |
+| Manual headers | `SecurityMiddleware` (built-in) |
+
+### Where I needed help
+- Choosing rate limits (per-endpoint vs global)
+- HTML vs JSON error responses
+- Security header meanings
+- Control character validation
+- Null byte injection risk
+- VS Code Python interpreter setup (venv vs base)
+
+### Honest note
+Security is layered. No single fix protects everything.
+
+Session cookies are still not HttpOnly/Secure — would need for production.
+
+Real-world: Security is never "done". It's a process.
+
+### Impact
+- Users can't abuse the API
+- Errors look professional
+- Security headers prevent common attacks
+- Better UX with friendly error messages
+
+## Day 21 — Testing & Optimization
+
+### What I did
+- Manual test of all features (15 tests)
+- Found and fixed 2 bugs:
+  - Bug 1: Image analysis failed (Llama 4 retired)
+  - Bug 2: Vision model in dropdown didn't work
+- Fixed by switching to `qwen/qwen3.8-27b`
+
+### What I learned
+- **Groq models change frequently** — always check with:
+  ```bash
+  curl https://api.groq.com/openai/v1/models -H "Authorization: Bearer $GROQ_API_KEY"
+
+  
+
+
+
 ## Port Note
 On macOS, AirPlay uses port 5000. Flask runs on 5001.
 URL: `http://127.0.0.1:5001`
